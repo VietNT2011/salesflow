@@ -1,0 +1,36 @@
+{
+  "name": "salesflow",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SalesFlow omnichannel customer service CRM",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "contracts:check": "vitest run packages/contracts/src/index.test.ts",
+    "dev": "pnpm --parallel --filter @salesflow/api --filter @salesflow/worker --filter @salesflow/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:migrate": "pnpm --filter @salesflow/database migrate",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm contracts:check && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@types/node": "^24.3.1",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^3.2.4"
+  }
+}

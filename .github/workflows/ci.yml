@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: salesflow_test
+          POSTGRES_USER: salesflow
+          POSTGRES_PASSWORD: salesflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U salesflow -d salesflow_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      API_HOST: 127.0.0.1
+      API_PORT: 3000
+      WEB_ORIGIN: http://localhost:5173
+      DATABASE_URL: postgresql://salesflow:salesflow@localhost:5432/salesflow_test
+      REDIS_URL: redis://localhost:6379
+      LOG_LEVEL: silent
+      OUTBOX_POLL_INTERVAL_MS: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm contracts:check
+      - run: pnpm test
+      - run: pnpm test:integration
+      - run: pnpm build

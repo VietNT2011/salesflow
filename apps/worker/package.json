@@ -1,0 +1,22 @@
+{
+  "name": "@salesflow/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@salesflow/config": "workspace:*",
+    "@salesflow/database": "workspace:*",
+    "@salesflow/observability": "workspace:*",
+    "bullmq": "^5.58.5",
+    "ioredis": "^5.7.0"
+  },
+  "devDependencies": {
+    "@salesflow/test-utils": "workspace:*"
+  }
+}

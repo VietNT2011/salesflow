@@ -1,0 +1,149 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #17251f;
+  background: #f1f1e9;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 230px 1fr;
+}
+.sidebar {
+  background: #12211b;
+  color: #f5f2e8;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 56px;
+}
+.brand span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #d7ff65;
+  color: #12211b;
+  font-weight: 800;
+}
+.sidebar nav {
+  display: grid;
+  gap: 7px;
+}
+.sidebar a {
+  color: #aab9b2;
+  text-decoration: none;
+  padding: 11px 13px;
+  border-radius: 8px;
+}
+.sidebar a:hover,
+.sidebar a.active {
+  background: #263a31;
+  color: white;
+}
+.phase {
+  margin-top: auto;
+  color: #80938a;
+  font-size: 12px;
+}
+.content {
+  padding: clamp(40px, 7vw, 100px);
+  overflow: hidden;
+}
+.eyebrow {
+  color: #557245;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+h1 {
+  font-size: clamp(42px, 7vw, 86px);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  max-width: 920px;
+  margin: 18px 0 28px;
+}
+.intro {
+  max-width: 620px;
+  color: #54635c;
+  font-size: 18px;
+  line-height: 1.6;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 64px;
+}
+.cards article {
+  min-height: 210px;
+  background: #fff;
+  padding: 24px;
+  border-top: 4px solid #d7ff65;
+}
+.cards span {
+  color: #85938d;
+  font:
+    12px ui-monospace,
+    monospace;
+}
+.cards h2 {
+  margin-top: 50px;
+  font-size: 20px;
+}
+.cards p {
+  color: #6b7771;
+  line-height: 1.5;
+}
+.fatal-error {
+  padding: 15vh 10vw;
+}
+button {
+  border: 0;
+  border-radius: 6px;
+  background: #12211b;
+  color: white;
+  padding: 12px 18px;
+}
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    padding: 16px;
+  }
+  .brand {
+    margin-bottom: 15px;
+  }
+  .sidebar nav {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .sidebar a {
+    font-size: 12px;
+    text-align: center;
+  }
+  .phase {
+    display: none;
+  }
+  .content {
+    padding: 46px 22px;
+  }
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}

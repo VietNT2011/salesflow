@@ -1,0 +1,44 @@
+import { Redis } from 'ioredis';
+import { parseApiConfig } from '@salesflow/config';
+import { createDatabaseClient } from '@salesflow/database';
+import { createApp } from './app.js';
+
+const config = parseApiConfig(process.env);
+const database = createDatabaseClient(config.DATABASE_URL);
+const redis = new Redis(config.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
+
+const app = createApp({
+  webOrigin: config.WEB_ORIGIN,
+  logLevel: config.LOG_LEVEL,
+  health: {
+    database: () => database.ping(),
+    redis: async () => {
+      try {
+        if (redis.status === 'wait') await redis.connect();
+        return (await redis.ping()) === 'PONG';
+      } catch {
+        return false;
+      }
+    },
+  },
+});
+
+const server = app.listen(config.API_PORT, config.API_HOST);
+
+let shuttingDown = false;
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.info(`${signal}: shutting down API`);
+  server.close(async () => {
+    await Promise.all([database.close(), redis.quit()]);
+    process.exitCode = 0;
+  });
+  setTimeout(() => {
+    process.exitCode = 1;
+    server.closeAllConnections();
+  }, 10_000).unref();
+}
+
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
