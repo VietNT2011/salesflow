@@ -72,6 +72,126 @@ export const transferOwnershipSchema = z.object({ membershipId: z.string().uuid(
 
 export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
 
+export const customerTypeSchema = z.enum(['PERSON', 'ORGANIZATION']);
+export const customerLifecycleSchema = z.enum(['PROSPECT', 'CUSTOMER', 'INACTIVE', 'ARCHIVED']);
+export const contactPointTypeSchema = z.enum(['PHONE', 'EMAIL', 'ADDRESS']);
+export const consentChannelSchema = z.enum(['EMAIL', 'SMS', 'PHONE', 'MESSENGER', 'WEBCHAT']);
+export const consentStatusSchema = z.enum(['UNKNOWN', 'GRANTED', 'REVOKED']);
+
+export const contactPointInputSchema = z.object({
+  type: contactPointTypeSchema,
+  value: z.string().trim().min(1).max(500),
+  country: z.string().trim().toUpperCase().length(2).optional(),
+  isPrimary: z.boolean().default(false),
+});
+
+export const customerConsentInputSchema = z.object({
+  channel: consentChannelSchema,
+  status: consentStatusSchema,
+  source: z.string().trim().min(1).max(100),
+  capturedAt: z.coerce.date(),
+});
+
+const customerProfileSchema = z.object({
+  type: customerTypeSchema,
+  displayName: z.string().trim().min(1).max(160).optional(),
+  organizationName: z.string().trim().min(1).max(160).optional(),
+  lifecycle: customerLifecycleSchema.exclude(['ARCHIVED']).default('PROSPECT'),
+  ownerMembershipId: z.string().uuid().nullable().optional(),
+  teamId: z.string().uuid().nullable().optional(),
+  source: z.string().trim().min(1).max(100).default('MANUAL'),
+  preferences: z.record(z.string(), z.unknown()).default({}),
+  contacts: z.array(contactPointInputSchema).max(20).default([]),
+  tagNames: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  consents: z.array(customerConsentInputSchema).max(10).default([]),
+});
+
+export const createCustomerSchema = customerProfileSchema.superRefine((value, context) => {
+  if (!value.displayName && !value.organizationName && value.contacts.length === 0) {
+    context.addIssue({
+      code: 'custom',
+      message: 'A name, organization or contact point is required',
+      path: ['displayName'],
+    });
+  }
+  if (value.type === 'ORGANIZATION' && !value.organizationName && !value.displayName) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Organization name is required',
+      path: ['organizationName'],
+    });
+  }
+});
+
+export const updateCustomerSchema = z
+  .object({
+    version: z.number().int().positive(),
+    type: customerTypeSchema.optional(),
+    displayName: z.string().trim().min(1).max(160).nullable().optional(),
+    organizationName: z.string().trim().min(1).max(160).nullable().optional(),
+    lifecycle: customerLifecycleSchema.exclude(['ARCHIVED']).optional(),
+    ownerMembershipId: z.string().uuid().nullable().optional(),
+    teamId: z.string().uuid().nullable().optional(),
+    source: z.string().trim().min(1).max(100).optional(),
+    preferences: z.record(z.string(), z.unknown()).optional(),
+    tagNames: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+    consents: z.array(customerConsentInputSchema).max(10).optional(),
+  })
+  .refine((value) => Object.keys(value).some((key) => key !== 'version'), {
+    message: 'At least one customer change is required',
+  });
+
+export const addContactPointSchema = z.object({
+  version: z.number().int().positive(),
+  contact: contactPointInputSchema,
+});
+
+export const customerListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().max(500).optional(),
+  q: z.string().trim().max(160).optional(),
+  lifecycle: customerLifecycleSchema.optional(),
+  tag: z.string().trim().max(50).optional(),
+});
+
+export const duplicateCandidateSchema = z.object({
+  contacts: z.array(contactPointInputSchema).min(1).max(20),
+});
+
+export const mergeCustomersSchema = z
+  .object({
+    survivorCustomerId: z.string().uuid(),
+    survivorVersion: z.number().int().positive(),
+    mergedCustomerId: z.string().uuid(),
+    mergedVersion: z.number().int().positive(),
+    reason: z.string().trim().min(3).max(500),
+  })
+  .refine((value) => value.survivorCustomerId !== value.mergedCustomerId, {
+    message: 'Customers must be different',
+  });
+
+export const customerVersionCommandSchema = z.object({ version: z.number().int().positive() });
+
+export const resolveChannelIdentitySchema = z.object({
+  provider: z.string().trim().min(1).max(50),
+  connectionKey: z.string().trim().min(1).max(160),
+  externalUserId: z.string().trim().min(1).max(255),
+  displayMetadata: z.record(z.string(), z.unknown()).default({}),
+  displayName: z.string().trim().min(1).max(160).optional(),
+  email: z.string().email().max(320).optional(),
+  phone: z.string().trim().min(3).max(50).optional(),
+  country: z.string().trim().toUpperCase().length(2).optional(),
+  source: z.string().trim().min(1).max(100),
+});
+
+export type CustomerType = z.infer<typeof customerTypeSchema>;
+export type CustomerLifecycle = z.infer<typeof customerLifecycleSchema>;
+export type ContactPointInput = z.infer<typeof contactPointInputSchema>;
+export type CustomerConsentInput = z.infer<typeof customerConsentInputSchema>;
+export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
+export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
+export type ResolveChannelIdentityInput = z.infer<typeof resolveChannelIdentitySchema>;
+
 export const openApiDocument = {
   openapi: '3.1.0',
   info: { title: 'SalesFlow API', version: '0.0.0' },
@@ -103,6 +223,20 @@ export const openApiDocument = {
     },
     '/api/v1/workspaces/{workspaceId}/transfer-ownership': {
       post: { summary: 'Transfer the protected Owner role' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers': {
+      get: { summary: 'Cursor-list tenant-visible customers' },
+      post: { summary: 'Create a Customer 360 profile' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers/{customerId}': {
+      get: { summary: 'Read a Customer 360 profile' },
+      patch: { summary: 'Optimistically update a customer' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers/duplicate-candidates': {
+      post: { summary: 'Preview exact email and phone duplicates' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers/merge': {
+      post: { summary: 'Transactionally merge two customer profiles' },
     },
   },
 } as const;

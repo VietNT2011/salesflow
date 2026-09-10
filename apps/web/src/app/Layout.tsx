@@ -24,7 +24,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <p className="phase">Identity & tenancy · F01</p>
+        <p className="phase">Customer 360 · F02</p>
       </aside>
       <main className="content">
         <Outlet />

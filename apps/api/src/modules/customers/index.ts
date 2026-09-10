@@ -1,2 +1,4 @@
-// Public module boundary. Feature implementation must export only stable contracts from here.
-export {};
+export type { WorkspaceAccess } from './application/index.js';
+export * from './domain/index.js';
+export { CustomerStore } from './infrastructure/index.js';
+export { createCustomerRouter } from './presentation/index.js';

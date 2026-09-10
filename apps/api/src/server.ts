@@ -2,21 +2,24 @@ import { Redis } from 'ioredis';
 import { parseApiConfig } from '@salesflow/config';
 import { createDatabaseClient } from '@salesflow/database';
 import { createApp } from './app.js';
+import { createCustomerRouter, CustomerStore } from './modules/customers/index.js';
 import { createIdentityRouter, IdentityStore } from './modules/identity-tenancy/index.js';
 
 const config = parseApiConfig(process.env);
 const database = createDatabaseClient(config.DATABASE_URL);
 const redis = new Redis(config.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
+const identityStore = new IdentityStore(database);
 
 const app = createApp({
   webOrigin: config.WEB_ORIGIN,
   logLevel: config.LOG_LEVEL,
   identityRouter: createIdentityRouter({
-    store: new IdentityStore(database),
+    store: identityStore,
     accessTokenSecret: config.ACCESS_TOKEN_SECRET,
     cookieSecure: config.COOKIE_SECURE,
     production: config.NODE_ENV === 'production',
   }),
+  customerRouter: createCustomerRouter(new CustomerStore(database, identityStore)),
   health: {
     database: () => database.ping(),
     redis: async () => {

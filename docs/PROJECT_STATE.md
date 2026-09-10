@@ -4,8 +4,8 @@ Last updated: 2026-09-10
 
 ## Current milestone
 
-F01 — Identity, Workspace, Teams & RBAC is complete. F02–F09 business behavior has not been
-introduced; F09 remains postponed.
+F02 — Customer 360 & Data Management is complete. F03–F08 have not been implemented; F09 remains
+postponed.
 
 ## Delivered
 
@@ -22,6 +22,14 @@ introduced; F09 remains postponed.
 - Member role/status/availability management, team creation/membership and explicit ownership
   transfer. Database constraints and row locks preserve a single Owner under concurrency.
 - React registration/login, invitation acceptance, workspace onboarding and member/team settings UI.
+- Tenant-scoped Customer 360 records for person/organization profiles, normalized contact points,
+  tags, consent, addresses/preferences, ownership/team and optimistic versions.
+- Exact duplicate preview, ambiguous identity review and concurrency-safe inbound resolution. Known
+  channel identity wins; conflicting email/phone matches are retained for review rather than guessed.
+- Admin/CS Manager manual merge with stable row locks, relation re-parenting, immutable aliases,
+  merge snapshots, audit and outbox in one PostgreSQL transaction.
+- Customer list/filter/create, 360 profile tabs, contact/update/archive/restore and duplicate-review UI.
+  Viewer PII is masked server-side; Agent/Sales visibility follows owner/team assignment.
 
 ## Public contracts
 
@@ -32,12 +40,19 @@ introduced; F09 remains postponed.
 - Teams: list/create and idempotently add an active workspace member.
 - Shared Zod schemas and `WorkspaceRole` are exported by `@salesflow/contracts`; OpenAPI lists the F01
   route surface.
+- Customers: list/create/duplicate-preview/merge plus get/update/contact/archive/restore commands under
+  `/workspaces/:workspaceId/customers`; duplicate review queue at
+  `/workspaces/:workspaceId/customer-duplicate-reviews`.
+- `@salesflow/contracts` exports F02 customer/contact/consent/list/version/merge/identity-resolution
+  schemas. List commands use a stable opaque cursor and cap page size at 100.
 
 ## Schema and migrations
 
 - `0000_foundation.sql`: append-only audit/outbox foundation.
 - `0001_identity_tenancy.sql`: users, workspaces/settings, memberships, invitations, refresh sessions,
   teams/team members and enum/index constraints.
+- `0002_customer_360.sql`: customers, contact points, tags, customer tags/consents, channel identities,
+  duplicate reviews, aliases and merge logs with tenant lookup and uniqueness indexes.
 - Unique constraints make normalized account email, workspace slug, active invitation, membership,
   team name and the single workspace Owner deterministic under concurrent requests.
 
@@ -45,19 +60,25 @@ introduced; F09 remains postponed.
 
 - `pnpm install --no-frozen-lockfile`: passed; lockfile includes F01 runtime/test dependencies.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`: passed across the monorepo.
-- `pnpm contracts:check`: passed (4 tests).
-- `pnpm test`: passed (7 files, 17 tests), including F01 policy/normalization and React login smoke.
-- `pnpm build`: passed for API, worker, web and shared packages; Vite production bundle built.
-- `pnpm test:integration`: passed (3 files, 7 tests) with isolated real PostgreSQL/Redis containers.
+- `pnpm contracts:check`: passed (5 tests).
+- `pnpm test`: passed (8 files, 20 tests), including customer normalization/policy and a real
+  QueryClient-backed React Customer 360 route smoke test.
+- `pnpm check`: passed end-to-end for formatting, lint, typecheck, contract tests, unit tests and builds
+  across API, worker, web and shared packages; the Vite production bundle built successfully.
+- `pnpm test:integration`: passed (4 files, 11 tests) with isolated real PostgreSQL/Redis containers.
   F01 covers register → workspace → invite → accept, refresh reuse revocation, concurrent slug/invite,
   tenant isolation, RBAC, deactivation, team creation and ownership transfer.
-- `pnpm db:migrate`: passed against the local PostgreSQL 17 Compose service after F01 migration.
+  F02 covers cross-tenant contacts, duplicate preview, stale version conflicts, assignment visibility,
+  Viewer PII masking, concurrent identity convergence, ambiguous review and authorized merge/history.
+- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. `pnpm db:migrate` passed against the
+  local PostgreSQL service, while the database integration test applied all migrations from blank.
 
 ## Architecture decisions
 
 - ADR 0001: browser token transport uses secure HTTP-only cookies; no browser storage.
 - ADR 0002: PostgreSQL transactional outbox and at-least-once BullMQ consumers.
 - ADR 0003: Argon2id sessions, refresh-family reuse detection and application-layer tenant/RBAC policy.
+- ADR 0004: exact customer identity precedence, advisory-lock concurrency and irreversible audited merge.
 
 ## Risks
 
@@ -66,9 +87,13 @@ introduced; F09 remains postponed.
 - Cookie security requires HTTPS and `COOKIE_SECURE=true` in production. The symmetric access-token
   secret must be generated and rotated operationally.
 - Outbox retention/cleanup remains intentionally deferred until operational volume is known.
+- The F02 merge transaction re-parents current customer-owned relations. Each later module must add its
+  new foreign keys to this merge handler and extend the merge preservation integration test.
+- Address normalization and fuzzy names are deliberately excluded; address is retained as PII text and
+  ambiguous exact identifiers require human review.
 
 ## Next dependency
 
-F02 — Customer 360 & Data Management. Read CORE, F02, this state file, F01 public contracts/schema and
-identity integration tests. Reuse `workspaceActor`/application policy and the established audit/outbox
-transaction pattern; do not bypass tenancy at repositories or routes.
+F03 — Product & Order History. Read CORE, F03, this state file, customer public contracts/schema and
+the F02 integration tests. Order creation/status changes must update the Customer 360 timeline contract,
+atomically promote the first valid order's `PROSPECT` to `CUSTOMER`, and extend customer merge handling.

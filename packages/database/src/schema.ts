@@ -28,6 +28,26 @@ export const workspaceRole = pgEnum('workspace_role', [
 ]);
 export const membershipStatus = pgEnum('membership_status', ['ACTIVE', 'DEACTIVATED']);
 export const memberAvailability = pgEnum('member_availability', ['AVAILABLE', 'UNAVAILABLE']);
+export const customerType = pgEnum('customer_type', ['PERSON', 'ORGANIZATION']);
+export const customerLifecycle = pgEnum('customer_lifecycle', [
+  'PROSPECT',
+  'CUSTOMER',
+  'INACTIVE',
+  'ARCHIVED',
+]);
+export const contactPointType = pgEnum('contact_point_type', ['PHONE', 'EMAIL', 'ADDRESS']);
+export const consentChannel = pgEnum('consent_channel', [
+  'EMAIL',
+  'SMS',
+  'PHONE',
+  'MESSENGER',
+  'WEBCHAT',
+]);
+export const consentStatus = pgEnum('consent_status', ['UNKNOWN', 'GRANTED', 'REVOKED']);
+export const duplicateReviewStatus = pgEnum('duplicate_review_status', [
+  'NEEDS_REVIEW',
+  'RESOLVED',
+]);
 
 export const users = pgTable(
   'users',
@@ -156,6 +176,195 @@ export const teamMembers = pgTable(
   },
   (table) => [uniqueIndex('team_members_unique').on(table.teamId, table.membershipId)],
 );
+
+export const customers = pgTable(
+  'customers',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    type: customerType('type').notNull(),
+    lifecycle: customerLifecycle('lifecycle').notNull().default('PROSPECT'),
+    displayName: text('display_name'),
+    organizationName: text('organization_name'),
+    ownerMembershipId: uuid('owner_membership_id').references(() => memberships.id),
+    teamId: uuid('team_id').references(() => teams.id),
+    source: text('source').notNull().default('MANUAL'),
+    preferences: jsonb('preferences').notNull().default({}),
+    version: integer('version').notNull().default(1),
+    mergedIntoCustomerId: uuid('merged_into_customer_id'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('customers_workspace_created_idx').on(table.workspaceId, table.createdAt, table.id),
+    index('customers_workspace_lifecycle_idx').on(table.workspaceId, table.lifecycle),
+    index('customers_workspace_owner_idx').on(table.workspaceId, table.ownerMembershipId),
+  ],
+);
+
+export const contactPoints = pgTable(
+  'contact_points',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    type: contactPointType('type').notNull(),
+    value: text('value').notNull(),
+    normalizedValue: text('normalized_value').notNull(),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('contact_points_customer_value_unique')
+      .on(table.customerId, table.type, table.normalizedValue)
+      .where(sql`${table.archivedAt} is null`),
+    uniqueIndex('contact_points_customer_primary_unique')
+      .on(table.customerId, table.type)
+      .where(sql`${table.isPrimary} = true and ${table.archivedAt} is null`),
+    index('contact_points_workspace_lookup_idx').on(
+      table.workspaceId,
+      table.type,
+      table.normalizedValue,
+    ),
+  ],
+);
+
+export const tags = pgTable(
+  'tags',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    name: text('name').notNull(),
+    color: text('color'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('tags_workspace_name_unique').on(table.workspaceId, table.name)],
+);
+
+export const customerTags = pgTable(
+  'customer_tags',
+  {
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('customer_tags_unique').on(table.customerId, table.tagId)],
+);
+
+export const customerConsents = pgTable(
+  'customer_consents',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    channel: consentChannel('channel').notNull(),
+    status: consentStatus('status').notNull().default('UNKNOWN'),
+    source: text('source').notNull(),
+    capturedAt: timestamp('captured_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('customer_consents_customer_channel_unique').on(table.customerId, table.channel),
+  ],
+);
+
+export const channelIdentities = pgTable(
+  'channel_identities',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid('customer_id').references(() => customers.id),
+    provider: text('provider').notNull(),
+    connectionKey: text('connection_key').notNull(),
+    externalUserId: text('external_user_id').notNull(),
+    displayMetadata: jsonb('display_metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('channel_identities_provider_identity_unique').on(
+      table.workspaceId,
+      table.provider,
+      table.connectionKey,
+      table.externalUserId,
+    ),
+    index('channel_identities_customer_idx').on(table.workspaceId, table.customerId),
+  ],
+);
+
+export const duplicateReviews = pgTable(
+  'duplicate_reviews',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    channelIdentityId: uuid('channel_identity_id').references(() => channelIdentities.id),
+    status: duplicateReviewStatus('status').notNull().default('NEEDS_REVIEW'),
+    reason: text('reason').notNull(),
+    candidateCustomerIds: jsonb('candidate_customer_ids').notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolvedBy: uuid('resolved_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('duplicate_reviews_workspace_status_idx').on(table.workspaceId, table.status)],
+);
+
+export const customerAliases = pgTable(
+  'customer_aliases',
+  {
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    aliasCustomerId: uuid('alias_customer_id')
+      .notNull()
+      .references(() => customers.id),
+    survivorCustomerId: uuid('survivor_customer_id')
+      .notNull()
+      .references(() => customers.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('customer_aliases_alias_unique').on(table.aliasCustomerId)],
+);
+
+export const customerMergeLogs = pgTable('customer_merge_logs', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id),
+  survivorCustomerId: uuid('survivor_customer_id')
+    .notNull()
+    .references(() => customers.id),
+  mergedCustomerId: uuid('merged_customer_id')
+    .notNull()
+    .references(() => customers.id),
+  actorId: uuid('actor_id')
+    .notNull()
+    .references(() => users.id),
+  reason: text('reason').notNull(),
+  snapshot: jsonb('snapshot').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const auditLog = pgTable(
   'audit_log',

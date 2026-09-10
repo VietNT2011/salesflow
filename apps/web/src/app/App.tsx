@@ -4,6 +4,9 @@ import { AcceptInvitationPage } from '../features/auth/AcceptInvitationPage.js';
 import { AuthPage } from '../features/auth/AuthPage.js';
 import { WorkspacePage } from '../features/auth/WorkspacePage.js';
 import { MemberSettingsPage } from '../features/auth/MemberSettingsPage.js';
+import { CustomerListPage } from '../features/customers/CustomerListPage.js';
+import { CustomerProfilePage } from '../features/customers/CustomerProfilePage.js';
+import { DuplicateReviewPage } from '../features/customers/DuplicateReviewPage.js';
 
 function Dashboard() {
   return (
@@ -56,7 +59,9 @@ const routes = [
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'onboarding', element: <WorkspacePage /> },
-      { path: 'customers', element: <FeaturePlaceholder /> },
+      { path: 'customers', element: <CustomerListPage /> },
+      { path: 'customers/review', element: <DuplicateReviewPage /> },
+      { path: 'customers/:customerId', element: <CustomerProfilePage /> },
       { path: 'inbox', element: <FeaturePlaceholder /> },
       { path: 'tickets', element: <FeaturePlaceholder /> },
       { path: 'tasks', element: <FeaturePlaceholder /> },

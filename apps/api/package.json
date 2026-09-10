@@ -10,11 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
     "@salesflow/config": "workspace:*",
     "@salesflow/contracts": "workspace:*",
     "@salesflow/database": "workspace:*",
     "@salesflow/observability": "workspace:*",
-    "@node-rs/argon2": "^2.0.2",
     "cors": "^2.8.5",
     "drizzle-orm": "^0.44.5",
     "express": "^5.1.0",
@@ -22,6 +22,7 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.7.0",
     "jose": "^6.1.0",
+    "libphonenumber-js": "^1.13.12",
     "pino-http": "^10.5.0",
     "zod": "^4.1.5"
   },

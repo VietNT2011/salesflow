@@ -14,6 +14,7 @@ export interface AppOptions {
   webOrigin: string;
   logLevel?: string;
   identityRouter?: Router;
+  customerRouter?: Router;
 }
 
 export function createApp(options: AppOptions): Express {
@@ -32,6 +33,7 @@ export function createApp(options: AppOptions): Express {
     response.json({ data: openApiDocument, meta: { requestId: request.requestId } });
   });
   if (options.identityRouter) app.use('/api/v1', options.identityRouter);
+  if (options.customerRouter) app.use('/api/v1', options.customerRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
