@@ -1,5 +1,9 @@
 import { Navigate, RouterProvider, createMemoryRouter, createBrowserRouter } from 'react-router';
 import { Layout } from './Layout.js';
+import { AcceptInvitationPage } from '../features/auth/AcceptInvitationPage.js';
+import { AuthPage } from '../features/auth/AuthPage.js';
+import { WorkspacePage } from '../features/auth/WorkspacePage.js';
+import { MemberSettingsPage } from '../features/auth/MemberSettingsPage.js';
 
 function Dashboard() {
   return (
@@ -44,16 +48,19 @@ function FeaturePlaceholder() {
 }
 
 const routes = [
+  { path: '/login', element: <AuthPage /> },
+  { path: '/accept-invitation', element: <AcceptInvitationPage /> },
   {
     path: '/',
     element: <Layout />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'onboarding', element: <WorkspacePage /> },
       { path: 'customers', element: <FeaturePlaceholder /> },
       { path: 'inbox', element: <FeaturePlaceholder /> },
       { path: 'tickets', element: <FeaturePlaceholder /> },
       { path: 'tasks', element: <FeaturePlaceholder /> },
-      { path: 'settings', element: <FeaturePlaceholder /> },
+      { path: 'settings', element: <MemberSettingsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

@@ -2,6 +2,7 @@ import { Redis } from 'ioredis';
 import { parseApiConfig } from '@salesflow/config';
 import { createDatabaseClient } from '@salesflow/database';
 import { createApp } from './app.js';
+import { createIdentityRouter, IdentityStore } from './modules/identity-tenancy/index.js';
 
 const config = parseApiConfig(process.env);
 const database = createDatabaseClient(config.DATABASE_URL);
@@ -10,6 +11,12 @@ const redis = new Redis(config.REDIS_URL, { lazyConnect: true, maxRetriesPerRequ
 const app = createApp({
   webOrigin: config.WEB_ORIGIN,
   logLevel: config.LOG_LEVEL,
+  identityRouter: createIdentityRouter({
+    store: new IdentityStore(database),
+    accessTokenSecret: config.ACCESS_TOKEN_SECRET,
+    cookieSecure: config.COOKIE_SECURE,
+    production: config.NODE_ENV === 'production',
+  }),
   health: {
     database: () => database.ping(),
     redis: async () => {

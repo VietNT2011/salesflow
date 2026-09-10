@@ -1,2 +1,4 @@
-// Reserved for F01 application code; intentionally empty during F00.
-export {};
+export interface AuthenticatedActor {
+  userId: string;
+  email: string;
+}

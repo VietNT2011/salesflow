@@ -1,8 +1,8 @@
 # SalesFlow
 
-SalesFlow is an omnichannel customer-service CRM for SMEs. This repository currently contains the
-F00 project foundation only; customer, order, ticket and channel business behavior is intentionally
-not implemented yet.
+SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
+F00 foundation and F01 identity/tenancy slice. Customer, order, ticket and channel business behavior
+is intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -46,3 +46,11 @@ database before running the integration suite.
 - `packages/test-utils`: real PostgreSQL/Redis Testcontainers fixtures.
 
 Architecture decisions and current verification evidence live in `docs/`.
+
+## F01 identity flow
+
+- Open `http://localhost:5173/login` to register or sign in.
+- Registration sets HttpOnly access/refresh cookies; create the first workspace at `/onboarding`.
+- Workspace Owners/Admins manage invitations, roles, availability and teams at `/settings`.
+- In development, the invitation endpoint returns a local acceptance link. Production intentionally
+  keeps the bearer token write-only until an email delivery adapter is configured.

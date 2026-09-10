@@ -11,6 +11,11 @@ const apiSchema = baseSchema.extend({
   API_HOST: z.string().min(1).default('0.0.0.0'),
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
   WEB_ORIGIN: z.string().url(),
+  ACCESS_TOKEN_SECRET: z.string().min(32),
+  COOKIE_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 const workerSchema = baseSchema.extend({

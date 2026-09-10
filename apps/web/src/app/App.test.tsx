@@ -16,4 +16,9 @@ describe('web shell', () => {
     render(<App initialEntries={['/customers']} />);
     expect(screen.getByRole('heading', { name: 'Module đang được chuẩn bị' })).toBeInTheDocument();
   });
+
+  it('renders the F01 sign-in screen', () => {
+    render(<App initialEntries={['/login']} />);
+    expect(screen.getByRole('heading', { name: 'Đăng nhập SalesFlow' })).toBeInTheDocument();
+  });
 });

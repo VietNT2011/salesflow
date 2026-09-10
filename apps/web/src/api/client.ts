@@ -20,6 +20,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     credentials: 'include',
     headers: { 'content-type': 'application/json', ...init.headers },
   });
+  if (response.status === 204) return undefined as T;
   const body: unknown = await response.json();
   if (!response.ok) {
     const candidate = body as ErrorResponse;

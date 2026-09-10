@@ -7,11 +7,13 @@ import { createLogger } from '@salesflow/observability';
 import { errorHandler, notFoundHandler } from './http/error-handler.js';
 import { requestContext } from './http/request-context.js';
 import { createHealthRouter, type HealthDependencies } from './health.js';
+import type { Router } from 'express';
 
 export interface AppOptions {
   health: HealthDependencies;
   webOrigin: string;
   logLevel?: string;
+  identityRouter?: Router;
 }
 
 export function createApp(options: AppOptions): Express {
@@ -29,6 +31,7 @@ export function createApp(options: AppOptions): Express {
   app.get('/api/v1/openapi.json', (request, response) => {
     response.json({ data: openApiDocument, meta: { requestId: request.requestId } });
   });
+  if (options.identityRouter) app.use('/api/v1', options.identityRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
