@@ -1,8 +1,8 @@
 # SalesFlow
 
 SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
-F00 foundation, F01 identity/tenancy, F02 Customer 360 and F03 product/order history slices. Ticket
-and channel business behavior is intentionally not implemented yet.
+F00 foundation through F04 interaction timeline/task slices. Ticket and channel business behavior is
+intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -72,3 +72,12 @@ Architecture decisions and current verification evidence live in `docs/`.
   360 Orders and Timeline tabs show the order and its lifecycle events.
 - Repeated external imports with the same tenant/source/external ID converge on one order. The first
   confirmed or fulfilled order promotes a prospect to a customer atomically.
+
+## F04 timeline and task flow
+
+- Customer 360 Timeline unifies manual notes, calls, email/meeting logs and immutable system/order
+  events with stable cursor ordering and channel/type filters.
+- Customer 360 Tasks creates and completes follow-up work. `/tasks` shows today's and overdue work
+  using database time and the workspace timezone.
+- Notes follow the 15-minute author edit rule; Manager void/redact retains history and requires a reason.
+  Viewer responses remove interaction/task PII server-side.

@@ -25,7 +25,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <p className="phase">Product & orders · F03</p>
+        <p className="phase">Timeline & tasks · F04</p>
       </aside>
       <main className="content">
         <Outlet />

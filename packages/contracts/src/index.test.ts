@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createOrderSchema,
+  createManualInteractionSchema,
   createInvitationSchema,
   createCustomerSchema,
   customerListQuerySchema,
@@ -61,5 +62,22 @@ describe('foundation contracts', () => {
         lines: [{ sku: 'SKU-1', name: 'Support plan', quantity: 2, unitPriceMinor: 50_000 }],
       }).currency,
     ).toBe('VND');
+  });
+
+  it('requires call direction and finalized call metadata', () => {
+    expect(
+      createManualInteractionSchema.safeParse({ type: 'CALL', summary: 'No metadata' }).success,
+    ).toBe(false);
+    expect(
+      createManualInteractionSchema.safeParse({
+        type: 'CALL',
+        origin: 'TELEPHONY',
+        direction: 'OUTBOUND',
+        summary: 'Reached customer',
+        callStartedAt: '2026-09-11T00:00:00.000Z',
+        callDurationSeconds: 120,
+        callOutcome: 'CONNECTED',
+      }).success,
+    ).toBe(true);
   });
 });

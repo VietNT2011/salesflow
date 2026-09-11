@@ -55,6 +55,7 @@ export const orderStatus = pgEnum('order_status', [
   'CANCELLED',
   'REFUNDED',
 ]);
+export const taskStatus = pgEnum('task_status', ['OPEN', 'COMPLETED']);
 
 export const users = pgTable(
   'users',
@@ -460,20 +461,70 @@ export const interactions = pgTable(
       .notNull()
       .references(() => customers.id),
     orderId: uuid('order_id').references(() => orders.id),
+    actorId: uuid('actor_id').references(() => users.id),
     type: text('type').notNull(),
     origin: text('origin').notNull(),
-    externalId: text('external_id').notNull(),
+    direction: text('direction'),
+    externalId: text('external_id'),
     summary: text('summary').notNull(),
+    content: text('content'),
+    state: text('state').notNull().default('FINALIZED'),
+    callStartedAt: timestamp('call_started_at', { withTimezone: true }),
+    callDurationSeconds: integer('call_duration_seconds'),
+    callOutcome: text('call_outcome'),
+    recordingReference: text('recording_reference'),
+    version: integer('version').notNull().default(1),
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+    redactedAt: timestamp('redacted_at', { withTimezone: true }),
+    voidReason: text('void_reason'),
     metadata: jsonb('metadata').notNull().default({}),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex('interactions_workspace_external_unique').on(table.workspaceId, table.externalId),
+    uniqueIndex('interactions_workspace_external_unique')
+      .on(table.workspaceId, table.externalId)
+      .where(sql`${table.externalId} is not null`),
     index('interactions_customer_timeline_idx').on(
       table.workspaceId,
       table.customerId,
       table.occurredAt,
+      table.id,
+    ),
+  ],
+);
+
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    ticketId: uuid('ticket_id'),
+    orderId: uuid('order_id').references(() => orders.id),
+    assigneeMembershipId: uuid('assignee_membership_id')
+      .notNull()
+      .references(() => memberships.id),
+    title: text('title').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    status: taskStatus('status').notNull().default('OPEN'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    completedBy: uuid('completed_by').references(() => users.id),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('tasks_workspace_due_idx').on(table.workspaceId, table.status, table.dueAt, table.id),
+    index('tasks_customer_due_idx').on(table.customerId, table.status, table.dueAt, table.id),
+    index('tasks_assignee_due_idx').on(
+      table.assigneeMembershipId,
+      table.status,
+      table.dueAt,
       table.id,
     ),
   ],

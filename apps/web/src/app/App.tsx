@@ -9,6 +9,7 @@ import { CustomerProfilePage } from '../features/customers/CustomerProfilePage.j
 import { DuplicateReviewPage } from '../features/customers/DuplicateReviewPage.js';
 import { OrderDetailPage } from '../features/orders/OrderDetailPage.js';
 import { OrderListPage } from '../features/orders/OrderListPage.js';
+import { TaskDashboardPage } from '../features/timeline/TaskDashboardPage.js';
 
 function Dashboard() {
   return (
@@ -68,7 +69,7 @@ const routes = [
       { path: 'orders/:orderId', element: <OrderDetailPage /> },
       { path: 'inbox', element: <FeaturePlaceholder /> },
       { path: 'tickets', element: <FeaturePlaceholder /> },
-      { path: 'tasks', element: <FeaturePlaceholder /> },
+      { path: 'tasks', element: <TaskDashboardPage /> },
       { path: 'settings', element: <MemberSettingsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

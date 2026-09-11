@@ -23,6 +23,7 @@ import {
   orders,
   outboxEvent,
   tags,
+  tasks,
   teamMembers,
   teams,
   workspaceSettings,
@@ -929,6 +930,10 @@ export class CustomerStore {
         .update(interactions)
         .set({ customerId: input.survivorCustomerId })
         .where(eq(interactions.customerId, input.mergedCustomerId));
+      await transaction
+        .update(tasks)
+        .set({ customerId: input.survivorCustomerId })
+        .where(eq(tasks.customerId, input.mergedCustomerId));
       await transaction
         .update(customers)
         .set({ version: sql`${customers.version} + 1`, updatedAt: new Date() })

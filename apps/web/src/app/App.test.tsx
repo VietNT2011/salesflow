@@ -37,6 +37,11 @@ describe('web shell', () => {
     expect(screen.getByRole('heading', { name: 'Chưa có workspace.' })).toBeInTheDocument();
   });
 
+  it('routes to the task dashboard', () => {
+    renderApp('/tasks');
+    expect(screen.getByRole('heading', { name: 'Chưa có workspace.' })).toBeInTheDocument();
+  });
+
   it('renders the F01 sign-in screen', () => {
     renderApp('/login');
     expect(screen.getByRole('heading', { name: 'Đăng nhập SalesFlow' })).toBeInTheDocument();

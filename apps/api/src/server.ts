@@ -5,11 +5,13 @@ import { createApp } from './app.js';
 import { createCustomerRouter, CustomerStore } from './modules/customers/index.js';
 import { createIdentityRouter, IdentityStore } from './modules/identity-tenancy/index.js';
 import { createOrderRouter, OrderStore } from './modules/orders/index.js';
+import { createInteractionRouter, InteractionStore } from './modules/interactions/index.js';
 
 const config = parseApiConfig(process.env);
 const database = createDatabaseClient(config.DATABASE_URL);
 const redis = new Redis(config.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
 const identityStore = new IdentityStore(database);
+const customerStore = new CustomerStore(database, identityStore);
 
 const app = createApp({
   webOrigin: config.WEB_ORIGIN,
@@ -20,8 +22,11 @@ const app = createApp({
     cookieSecure: config.COOKIE_SECURE,
     production: config.NODE_ENV === 'production',
   }),
-  customerRouter: createCustomerRouter(new CustomerStore(database, identityStore)),
+  customerRouter: createCustomerRouter(customerStore),
   orderRouter: createOrderRouter(new OrderStore(database, identityStore)),
+  interactionRouter: createInteractionRouter(
+    new InteractionStore(database, identityStore, customerStore),
+  ),
   health: {
     database: () => database.ping(),
     redis: async () => {

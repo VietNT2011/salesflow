@@ -274,6 +274,104 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type TransitionOrderInput = z.infer<typeof transitionOrderSchema>;
 
+export const interactionTypeSchema = z.enum([
+  'NOTE',
+  'CALL',
+  'EMAIL',
+  'MESSAGE',
+  'MEETING',
+  'ORDER_EVENT',
+  'TICKET_EVENT',
+  'SYSTEM',
+]);
+export const interactionOriginSchema = z.enum([
+  'MANUAL',
+  'WEBCHAT',
+  'MESSENGER',
+  'ZALO',
+  'TELEPHONY',
+  'EMAIL',
+  'SYSTEM',
+]);
+export const interactionDirectionSchema = z.enum(['INBOUND', 'OUTBOUND']);
+
+export const createManualInteractionSchema = z
+  .object({
+    type: z.enum(['NOTE', 'CALL', 'EMAIL', 'MEETING']),
+    origin: z.enum(['MANUAL', 'TELEPHONY', 'EMAIL']).default('MANUAL'),
+    direction: interactionDirectionSchema.optional(),
+    summary: z.string().trim().min(1).max(500),
+    content: z.string().trim().min(1).max(20_000).optional(),
+    occurredAt: z.coerce.date().optional(),
+    callStartedAt: z.coerce.date().optional(),
+    callDurationSeconds: z.number().int().min(0).max(86_400).optional(),
+    callOutcome: z.string().trim().min(1).max(200).optional(),
+    recordingReference: z.string().trim().min(1).max(2_000).optional(),
+  })
+  .superRefine((value, context) => {
+    if ((value.type === 'CALL' || value.type === 'EMAIL') && !value.direction) {
+      context.addIssue({ code: 'custom', path: ['direction'], message: 'Direction is required' });
+    }
+    if (
+      value.type === 'CALL' &&
+      (!value.callStartedAt || value.callDurationSeconds === undefined || !value.callOutcome)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['callStartedAt'],
+        message: 'Call start, duration and outcome are required',
+      });
+    }
+    if (value.type !== 'CALL' && value.recordingReference) {
+      context.addIssue({
+        code: 'custom',
+        path: ['recordingReference'],
+        message: 'Recording reference is only valid for calls',
+      });
+    }
+  });
+
+export const timelineQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().max(500).optional(),
+  type: interactionTypeSchema.optional(),
+  origin: interactionOriginSchema.optional(),
+});
+
+export const updateNoteSchema = z.object({
+  version: z.number().int().positive(),
+  content: z.string().trim().min(1).max(20_000),
+  summary: z.string().trim().min(1).max(500).optional(),
+});
+
+export const moderateInteractionSchema = z.object({
+  version: z.number().int().positive(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+export const createTaskSchema = z.object({
+  title: z.string().trim().min(1).max(300),
+  dueAt: z.coerce.date(),
+  assigneeMembershipId: z.string().uuid().optional(),
+  orderId: z.string().uuid().optional(),
+  ticketId: z.string().uuid().optional(),
+});
+
+export const completeTaskSchema = z.object({ version: z.number().int().positive() });
+export const taskListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(100),
+  scope: z.enum(['ALL', 'TODAY', 'OVERDUE']).default('ALL'),
+  customerId: z.string().uuid().optional(),
+  status: z.enum(['OPEN', 'COMPLETED']).optional(),
+});
+
+export type InteractionType = z.infer<typeof interactionTypeSchema>;
+export type InteractionOrigin = z.infer<typeof interactionOriginSchema>;
+export type CreateManualInteractionInput = z.infer<typeof createManualInteractionSchema>;
+export type TimelineQuery = z.infer<typeof timelineQuerySchema>;
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type TaskListQuery = z.infer<typeof taskListQuerySchema>;
+
 export const openApiDocument = {
   openapi: '3.1.0',
   info: { title: 'SalesFlow API', version: '0.0.0' },
@@ -339,6 +437,22 @@ export const openApiDocument = {
     },
     '/api/v1/workspaces/{workspaceId}/customers/{customerId}/order-events': {
       get: { summary: 'List immutable order events for the Customer 360 timeline' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers/{customerId}/interactions': {
+      get: { summary: 'Cursor-list the unified Customer 360 timeline' },
+      post: { summary: 'Log a manual customer interaction' },
+    },
+    '/api/v1/workspaces/{workspaceId}/interactions/{interactionId}': {
+      patch: { summary: 'Edit a note under the author time policy' },
+    },
+    '/api/v1/workspaces/{workspaceId}/tasks': {
+      get: { summary: 'List visible today, overdue or customer tasks' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers/{customerId}/tasks': {
+      post: { summary: 'Create an assigned customer task' },
+    },
+    '/api/v1/workspaces/{workspaceId}/tasks/{taskId}/complete': {
+      post: { summary: 'Optimistically complete a task' },
     },
   },
 } as const;

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
 import { apiRequest, ApiClientError } from '../../api/client.js';
+import { TaskPanel } from '../timeline/TaskPanel.js';
+import { TimelinePanel } from '../timeline/TimelinePanel.js';
 
 interface Workspace {
   id: string;
@@ -37,14 +39,6 @@ interface CustomerOrder {
   placedAt: string;
 }
 
-interface OrderEvent {
-  id: string;
-  orderId: string;
-  summary: string;
-  metadata: { status?: string; totalMinor?: number };
-  occurredAt: string;
-}
-
 const tabs = ['Overview', 'Timeline', 'Orders', 'Tickets', 'Conversations', 'Tasks'];
 
 export function CustomerProfilePage() {
@@ -70,14 +64,6 @@ export function CustomerProfilePage() {
     queryFn: () =>
       apiRequest<{ data: CustomerOrder[] }>(
         `/workspaces/${workspace?.id}/orders?customerId=${customerId}&limit=100`,
-      ),
-  });
-  const orderEvents = useQuery({
-    queryKey: ['order-events', workspace?.id, customerId],
-    enabled: Boolean(workspace && customerId && activeTab === 'Timeline'),
-    queryFn: () =>
-      apiRequest<{ data: OrderEvent[] }>(
-        `/workspaces/${workspace?.id}/customers/${customerId}/order-events`,
       ),
   });
   const mayEdit = workspace?.role !== 'VIEWER';
@@ -148,7 +134,7 @@ export function CustomerProfilePage() {
     );
   }
 
-  if (!profile) {
+  if (!profile || !workspace) {
     return (
       <section>
         <p className="eyebrow">Customer 360</p>
@@ -295,21 +281,9 @@ export function CustomerProfilePage() {
           </div>
         </article>
       ) : activeTab === 'Timeline' ? (
-        <article className="empty-tab">
-          <p className="eyebrow">Timeline · order events</p>
-          <div className="contact-list">
-            {orderEvents.data?.data.map((event) => (
-              <Link key={event.id} to={`/orders/${event.orderId}`}>
-                <strong>{event.summary}</strong>
-                <span>{event.metadata.status}</span>
-                <small>{new Date(event.occurredAt).toLocaleString('vi-VN')}</small>
-              </Link>
-            ))}
-            {!orderEvents.isLoading && !orderEvents.data?.data.length && (
-              <p>Chưa có sự kiện đơn hàng.</p>
-            )}
-          </div>
-        </article>
+        <TimelinePanel workspaceId={workspace.id} customerId={profile.id} mayEdit={mayEdit} />
+      ) : activeTab === 'Tasks' ? (
+        <TaskPanel workspaceId={workspace.id} customerId={profile.id} mayEdit={mayEdit} />
       ) : (
         <article className="empty-tab">
           <p className="eyebrow">{activeTab}</p>
