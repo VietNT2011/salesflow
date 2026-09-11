@@ -15,6 +15,7 @@ export interface AppOptions {
   logLevel?: string;
   identityRouter?: Router;
   customerRouter?: Router;
+  orderRouter?: Router;
 }
 
 export function createApp(options: AppOptions): Express {
@@ -34,6 +35,7 @@ export function createApp(options: AppOptions): Express {
   });
   if (options.identityRouter) app.use('/api/v1', options.identityRouter);
   if (options.customerRouter) app.use('/api/v1', options.customerRouter);
+  if (options.orderRouter) app.use('/api/v1', options.orderRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

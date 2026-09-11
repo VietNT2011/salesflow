@@ -48,6 +48,13 @@ export const duplicateReviewStatus = pgEnum('duplicate_review_status', [
   'NEEDS_REVIEW',
   'RESOLVED',
 ]);
+export const orderStatus = pgEnum('order_status', [
+  'DRAFT',
+  'CONFIRMED',
+  'FULFILLED',
+  'CANCELLED',
+  'REFUNDED',
+]);
 
 export const users = pgTable(
   'users',
@@ -365,6 +372,112 @@ export const customerMergeLogs = pgTable('customer_merge_logs', {
   snapshot: jsonb('snapshot').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const products = pgTable(
+  'products',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    sku: text('sku').notNull(),
+    normalizedSku: text('normalized_sku').notNull(),
+    name: text('name').notNull(),
+    active: boolean('active').notNull().default(true),
+    defaultPriceMinor: integer('default_price_minor').notNull(),
+    currency: text('currency').notNull(),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('products_workspace_sku_unique').on(table.workspaceId, table.normalizedSku),
+    index('products_workspace_active_idx').on(table.workspaceId, table.active, table.name),
+  ],
+);
+
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    source: text('source').notNull(),
+    externalOrderId: text('external_order_id'),
+    status: orderStatus('status').notNull().default('DRAFT'),
+    currency: text('currency').notNull(),
+    subtotalMinor: integer('subtotal_minor').notNull(),
+    discountMinor: integer('discount_minor').notNull().default(0),
+    totalMinor: integer('total_minor').notNull(),
+    placedAt: timestamp('placed_at', { withTimezone: true }).notNull(),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('orders_external_identity_unique')
+      .on(table.workspaceId, table.source, table.externalOrderId)
+      .where(sql`${table.externalOrderId} is not null`),
+    index('orders_workspace_placed_idx').on(table.workspaceId, table.placedAt, table.id),
+    index('orders_customer_placed_idx').on(table.customerId, table.placedAt, table.id),
+  ],
+);
+
+export const orderLineItems = pgTable(
+  'order_line_items',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    productId: uuid('product_id').references(() => products.id),
+    skuSnapshot: text('sku_snapshot').notNull(),
+    nameSnapshot: text('name_snapshot').notNull(),
+    quantity: integer('quantity').notNull(),
+    unitPriceMinor: integer('unit_price_minor').notNull(),
+    lineTotalMinor: integer('line_total_minor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('order_line_items_order_idx').on(table.orderId)],
+);
+
+// F03 writes only immutable ORDER_EVENT records; F04 will add the remaining interaction behavior.
+export const interactions = pgTable(
+  'interactions',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    orderId: uuid('order_id').references(() => orders.id),
+    type: text('type').notNull(),
+    origin: text('origin').notNull(),
+    externalId: text('external_id').notNull(),
+    summary: text('summary').notNull(),
+    metadata: jsonb('metadata').notNull().default({}),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('interactions_workspace_external_unique').on(table.workspaceId, table.externalId),
+    index('interactions_customer_timeline_idx').on(
+      table.workspaceId,
+      table.customerId,
+      table.occurredAt,
+      table.id,
+    ),
+  ],
+);
 
 export const auditLog = pgTable(
   'audit_log',

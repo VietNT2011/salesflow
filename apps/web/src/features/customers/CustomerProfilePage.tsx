@@ -29,6 +29,22 @@ interface Customer {
   consents: { id: string; channel: string; status: string }[];
 }
 
+interface CustomerOrder {
+  id: string;
+  status: string;
+  currency: string;
+  totalMinor: number;
+  placedAt: string;
+}
+
+interface OrderEvent {
+  id: string;
+  orderId: string;
+  summary: string;
+  metadata: { status?: string; totalMinor?: number };
+  occurredAt: string;
+}
+
 const tabs = ['Overview', 'Timeline', 'Orders', 'Tickets', 'Conversations', 'Tasks'];
 
 export function CustomerProfilePage() {
@@ -48,6 +64,22 @@ export function CustomerProfilePage() {
       apiRequest<{ data: Customer }>(`/workspaces/${workspace?.id}/customers/${customerId}`),
   });
   const profile = customer.data?.data;
+  const customerOrders = useQuery({
+    queryKey: ['orders', workspace?.id, customerId],
+    enabled: Boolean(workspace && customerId && activeTab === 'Orders'),
+    queryFn: () =>
+      apiRequest<{ data: CustomerOrder[] }>(
+        `/workspaces/${workspace?.id}/orders?customerId=${customerId}&limit=100`,
+      ),
+  });
+  const orderEvents = useQuery({
+    queryKey: ['order-events', workspace?.id, customerId],
+    enabled: Boolean(workspace && customerId && activeTab === 'Timeline'),
+    queryFn: () =>
+      apiRequest<{ data: OrderEvent[] }>(
+        `/workspaces/${workspace?.id}/customers/${customerId}/order-events`,
+      ),
+  });
   const mayEdit = workspace?.role !== 'VIEWER';
   const mayArchive = ['OWNER', 'ADMIN', 'CS_MANAGER'].includes(workspace?.role ?? '');
 
@@ -244,6 +276,40 @@ export function CustomerProfilePage() {
             </div>
           )}
         </div>
+      ) : activeTab === 'Orders' ? (
+        <article className="empty-tab">
+          <p className="eyebrow">Orders</p>
+          <div className="contact-list">
+            {customerOrders.data?.data.map((order) => (
+              <Link key={order.id} to={`/orders/${order.id}`}>
+                <strong>{order.status}</strong>
+                <span>
+                  {order.totalMinor.toLocaleString('vi-VN')} {order.currency} minor units
+                </span>
+                <small>{new Date(order.placedAt).toLocaleString('vi-VN')}</small>
+              </Link>
+            ))}
+            {!customerOrders.isLoading && !customerOrders.data?.data.length && (
+              <p>Khách hàng chưa có đơn hàng.</p>
+            )}
+          </div>
+        </article>
+      ) : activeTab === 'Timeline' ? (
+        <article className="empty-tab">
+          <p className="eyebrow">Timeline · order events</p>
+          <div className="contact-list">
+            {orderEvents.data?.data.map((event) => (
+              <Link key={event.id} to={`/orders/${event.orderId}`}>
+                <strong>{event.summary}</strong>
+                <span>{event.metadata.status}</span>
+                <small>{new Date(event.occurredAt).toLocaleString('vi-VN')}</small>
+              </Link>
+            ))}
+            {!orderEvents.isLoading && !orderEvents.data?.data.length && (
+              <p>Chưa có sự kiện đơn hàng.</p>
+            )}
+          </div>
+        </article>
       ) : (
         <article className="empty-tab">
           <p className="eyebrow">{activeTab}</p>

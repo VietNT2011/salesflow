@@ -192,6 +192,88 @@ export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
 export type ResolveChannelIdentityInput = z.infer<typeof resolveChannelIdentitySchema>;
 
+export const currencySchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z]{3}$/);
+export const moneyMinorSchema = z.number().int().min(0).max(2_000_000_000);
+export const orderStatusSchema = z.enum([
+  'DRAFT',
+  'CONFIRMED',
+  'FULFILLED',
+  'CANCELLED',
+  'REFUNDED',
+]);
+
+export const createProductSchema = z.object({
+  sku: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(200),
+  active: z.boolean().default(true),
+  defaultPriceMinor: moneyMinorSchema,
+  currency: currencySchema,
+});
+
+export const updateProductSchema = z
+  .object({
+    version: z.number().int().positive(),
+    sku: z.string().trim().min(1).max(100).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    active: z.boolean().optional(),
+    defaultPriceMinor: moneyMinorSchema.optional(),
+    currency: currencySchema.optional(),
+  })
+  .refine((value) => Object.keys(value).some((key) => key !== 'version'), {
+    message: 'At least one product change is required',
+  });
+
+export const orderLineInputSchema = z
+  .object({
+    productId: z.string().uuid().optional(),
+    sku: z.string().trim().min(1).max(100).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    quantity: z.number().int().min(1).max(1_000_000),
+    unitPriceMinor: moneyMinorSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    if (!value.productId && (!value.sku || !value.name || value.unitPriceMinor === undefined)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Custom lines require sku, name and unitPriceMinor',
+      });
+    }
+  });
+
+export const createOrderSchema = z.object({
+  customerId: z.string().uuid(),
+  source: z.string().trim().min(1).max(100).default('MANUAL'),
+  externalOrderId: z.string().trim().min(1).max(255).optional(),
+  status: z.enum(['DRAFT', 'CONFIRMED']).default('DRAFT'),
+  currency: currencySchema,
+  discountMinor: moneyMinorSchema.default(0),
+  placedAt: z.coerce.date().optional(),
+  lines: z.array(orderLineInputSchema).min(1).max(100),
+});
+
+export const transitionOrderSchema = z.object({
+  version: z.number().int().positive(),
+  status: z.enum(['CONFIRMED', 'FULFILLED', 'CANCELLED', 'REFUNDED']),
+  reason: z.string().trim().min(3).max(500).optional(),
+});
+
+export const orderListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().max(500).optional(),
+  customerId: z.string().uuid().optional(),
+  status: orderStatusSchema.optional(),
+});
+
+export type OrderStatus = z.infer<typeof orderStatusSchema>;
+export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type TransitionOrderInput = z.infer<typeof transitionOrderSchema>;
+
 export const openApiDocument = {
   openapi: '3.1.0',
   info: { title: 'SalesFlow API', version: '0.0.0' },
@@ -237,6 +319,26 @@ export const openApiDocument = {
     },
     '/api/v1/workspaces/{workspaceId}/customers/merge': {
       post: { summary: 'Transactionally merge two customer profiles' },
+    },
+    '/api/v1/workspaces/{workspaceId}/products': {
+      get: { summary: 'List the tenant product catalog' },
+      post: { summary: 'Create a catalog product' },
+    },
+    '/api/v1/workspaces/{workspaceId}/products/{productId}': {
+      patch: { summary: 'Optimistically update a catalog product' },
+    },
+    '/api/v1/workspaces/{workspaceId}/orders': {
+      get: { summary: 'Cursor-list visible CRM orders' },
+      post: { summary: 'Create a server-priced CRM order' },
+    },
+    '/api/v1/workspaces/{workspaceId}/orders/{orderId}': {
+      get: { summary: 'Read an order and immutable line snapshots' },
+    },
+    '/api/v1/workspaces/{workspaceId}/orders/{orderId}/status': {
+      post: { summary: 'Optimistically transition an order status' },
+    },
+    '/api/v1/workspaces/{workspaceId}/customers/{customerId}/order-events': {
+      get: { summary: 'List immutable order events for the Customer 360 timeline' },
     },
   },
 } as const;

@@ -18,7 +18,9 @@ import {
   customers,
   customerTags,
   duplicateReviews,
+  interactions,
   memberships,
+  orders,
   outboxEvent,
   tags,
   teamMembers,
@@ -854,6 +856,10 @@ export class CustomerStore {
         .where(
           inArray(customerTags.customerId, [input.survivorCustomerId, input.mergedCustomerId]),
         );
+      const orderSnapshot = await transaction
+        .select({ id: orders.id, customerId: orders.customerId, status: orders.status })
+        .from(orders)
+        .where(inArray(orders.customerId, [input.survivorCustomerId, input.mergedCustomerId]));
 
       // Duplicate values are archived before re-parenting; history remains queryable in the merge log.
       await transaction.execute(sql`
@@ -914,6 +920,15 @@ export class CustomerStore {
       await transaction
         .delete(customerConsents)
         .where(eq(customerConsents.customerId, input.mergedCustomerId));
+      // F03 relations join the same locked merge transaction so no order/timeline record is orphaned.
+      await transaction
+        .update(orders)
+        .set({ customerId: input.survivorCustomerId })
+        .where(eq(orders.customerId, input.mergedCustomerId));
+      await transaction
+        .update(interactions)
+        .set({ customerId: input.survivorCustomerId })
+        .where(eq(interactions.customerId, input.mergedCustomerId));
       await transaction
         .update(customers)
         .set({ version: sql`${customers.version} + 1`, updatedAt: new Date() })
@@ -946,6 +961,7 @@ export class CustomerStore {
           contacts: contactSnapshot,
           tags: tagSnapshot,
           consents: consentSnapshot,
+          orders: orderSnapshot,
         },
       });
       const matchingReviews = await transaction

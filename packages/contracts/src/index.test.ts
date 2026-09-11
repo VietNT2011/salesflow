@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createOrderSchema,
   createInvitationSchema,
   createCustomerSchema,
   customerListQuerySchema,
@@ -43,5 +44,22 @@ describe('foundation contracts', () => {
       }).success,
     ).toBe(true);
     expect(customerListQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  });
+
+  it('requires complete custom order lines and normalizes currency', () => {
+    expect(
+      createOrderSchema.safeParse({
+        customerId: '33587f10-8a5e-4f71-87c2-acf7c87a7a88',
+        currency: 'vnd',
+        lines: [{ sku: 'SKU-1', name: 'Support plan', quantity: 2 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createOrderSchema.parse({
+        customerId: '33587f10-8a5e-4f71-87c2-acf7c87a7a88',
+        currency: 'vnd',
+        lines: [{ sku: 'SKU-1', name: 'Support plan', quantity: 2, unitPriceMinor: 50_000 }],
+      }).currency,
+    ).toBe('VND');
   });
 });

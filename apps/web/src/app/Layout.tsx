@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router';
 const navigation = [
   ['/', 'Tổng quan'],
   ['/customers', 'Khách hàng'],
+  ['/orders', 'Đơn hàng'],
   ['/inbox', 'Hộp thư'],
   ['/tickets', 'Ticket'],
   ['/tasks', 'Công việc'],
@@ -24,7 +25,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <p className="phase">Customer 360 · F02</p>
+        <p className="phase">Product & orders · F03</p>
       </aside>
       <main className="content">
         <Outlet />

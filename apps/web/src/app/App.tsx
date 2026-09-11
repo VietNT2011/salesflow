@@ -7,6 +7,8 @@ import { MemberSettingsPage } from '../features/auth/MemberSettingsPage.js';
 import { CustomerListPage } from '../features/customers/CustomerListPage.js';
 import { CustomerProfilePage } from '../features/customers/CustomerProfilePage.js';
 import { DuplicateReviewPage } from '../features/customers/DuplicateReviewPage.js';
+import { OrderDetailPage } from '../features/orders/OrderDetailPage.js';
+import { OrderListPage } from '../features/orders/OrderListPage.js';
 
 function Dashboard() {
   return (
@@ -62,6 +64,8 @@ const routes = [
       { path: 'customers', element: <CustomerListPage /> },
       { path: 'customers/review', element: <DuplicateReviewPage /> },
       { path: 'customers/:customerId', element: <CustomerProfilePage /> },
+      { path: 'orders', element: <OrderListPage /> },
+      { path: 'orders/:orderId', element: <OrderDetailPage /> },
       { path: 'inbox', element: <FeaturePlaceholder /> },
       { path: 'tickets', element: <FeaturePlaceholder /> },
       { path: 'tasks', element: <FeaturePlaceholder /> },

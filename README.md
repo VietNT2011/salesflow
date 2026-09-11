@@ -1,8 +1,8 @@
 # SalesFlow
 
 SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
-F00 foundation, F01 identity/tenancy and F02 Customer 360 slices. Order, ticket and channel business
-behavior is intentionally not implemented yet.
+F00 foundation, F01 identity/tenancy, F02 Customer 360 and F03 product/order history slices. Ticket
+and channel business behavior is intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -63,3 +63,12 @@ Architecture decisions and current verification evidence live in `docs/`.
   orders, tickets, conversations and tasks.
 - Admin and CS Manager can review ambiguous identities and merge duplicates at `/customers/review`.
   Stale edits return `409 VERSION_CONFLICT`; Viewer contact data is masked server-side.
+
+## F03 product and order flow
+
+- Open `/orders` to manage the minimal product catalog and create CRM orders. Monetary values are
+  integer minor units; totals are always recalculated by the API.
+- Open an order to inspect immutable line snapshots and apply an allowed status transition. Customer
+  360 Orders and Timeline tabs show the order and its lifecycle events.
+- Repeated external imports with the same tenant/source/external ID converge on one order. The first
+  confirmed or fulfilled order promotes a prospect to a customer atomically.

@@ -4,8 +4,7 @@ Last updated: 2026-09-10
 
 ## Current milestone
 
-F02 — Customer 360 & Data Management is complete. F03–F08 have not been implemented; F09 remains
-postponed.
+F03 — Product & Order History is complete. F04–F08 have not been implemented; F09 remains postponed.
 
 ## Delivered
 
@@ -30,6 +29,14 @@ postponed.
   merge snapshots, audit and outbox in one PostgreSQL transaction.
 - Customer list/filter/create, 360 profile tabs, contact/update/archive/restore and duplicate-review UI.
   Viewer PII is masked server-side; Agent/Sales visibility follows owner/team assignment.
+- Minimal tenant product catalog with optimistic updates and immutable SKU/name/price snapshots on
+  orders. Order totals are computed server-side from integer minor units and checked again by PostgreSQL.
+- Explicit DRAFT/CONFIRMED/FULFILLED/CANCELLED/REFUNDED transitions, audited cancellation/refund reason,
+  stale-version conflict and terminal-state protection.
+- External `(workspace, source, externalOrderId)` idempotency serialized by PostgreSQL advisory lock.
+  Order mutation, Customer 360 order event, audit, outbox and first prospect promotion are atomic.
+- React order list/detail/manual-create and product settings, plus populated Customer 360 Orders and
+  order-event Timeline tabs.
 
 ## Public contracts
 
@@ -45,6 +52,11 @@ postponed.
   `/workspaces/:workspaceId/customer-duplicate-reviews`.
 - `@salesflow/contracts` exports F02 customer/contact/consent/list/version/merge/identity-resolution
   schemas. List commands use a stable opaque cursor and cap page size at 100.
+- Products: list/create/update under `/workspaces/:workspaceId/products`.
+- Orders: cursor list/create, detail and status transition under `/workspaces/:workspaceId/orders`;
+  customer-specific immutable events at `/customers/:customerId/order-events`.
+- `@salesflow/contracts` exports currency/minor-unit, product, line snapshot, order creation,
+  transition/status and pagination schemas.
 
 ## Schema and migrations
 
@@ -53,6 +65,8 @@ postponed.
   teams/team members and enum/index constraints.
 - `0002_customer_360.sql`: customers, contact points, tags, customer tags/consents, channel identities,
   duplicate reviews, aliases and merge logs with tenant lookup and uniqueness indexes.
+- `0003_product_order_history.sql`: products, orders, immutable line items and F03 `ORDER_EVENT`
+  interactions with arithmetic, external identity and stable timeline indexes.
 - Unique constraints make normalized account email, workspace slug, active invitation, membership,
   team name and the single workspace Owner deterministic under concurrent requests.
 
@@ -60,18 +74,20 @@ postponed.
 
 - `pnpm install --no-frozen-lockfile`: passed; lockfile includes F01 runtime/test dependencies.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`: passed across the monorepo.
-- `pnpm contracts:check`: passed (5 tests).
-- `pnpm test`: passed (8 files, 20 tests), including customer normalization/policy and a real
-  QueryClient-backed React Customer 360 route smoke test.
+- `pnpm contracts:check`: covered by the final quality gate (6 tests).
+- `pnpm test`: passed (9 files, 24 tests), including totals/transitions and QueryClient-backed React
+  Customer 360/order route smoke tests.
 - `pnpm check`: passed end-to-end for formatting, lint, typecheck, contract tests, unit tests and builds
   across API, worker, web and shared packages; the Vite production bundle built successfully.
-- `pnpm test:integration`: passed (4 files, 11 tests) with isolated real PostgreSQL/Redis containers.
+- `pnpm test:integration`: passed (5 files, 15 tests) with isolated real PostgreSQL/Redis containers.
   F01 covers register → workspace → invite → accept, refresh reuse revocation, concurrent slug/invite,
   tenant isolation, RBAC, deactivation, team creation and ownership transfer.
   F02 covers cross-tenant contacts, duplicate preview, stale version conflicts, assignment visibility,
   Viewer PII masking, concurrent identity convergence, ambiguous review and authorized merge/history.
-- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. `pnpm db:migrate` passed against the
-  local PostgreSQL service, while the database integration test applied all migrations from blank.
+  F03 covers server totals, immutable snapshots, customer promotion/timeline, invalid/stale transitions,
+  concurrent external idempotency and order/history preservation through customer merge.
+- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. `pnpm db:migrate` applied migration
+  `0003` locally, while the database integration test applied all migrations from blank.
 
 ## Architecture decisions
 
@@ -79,6 +95,7 @@ postponed.
 - ADR 0002: PostgreSQL transactional outbox and at-least-once BullMQ consumers.
 - ADR 0003: Argon2id sessions, refresh-family reuse detection and application-layer tenant/RBAC policy.
 - ADR 0004: exact customer identity precedence, advisory-lock concurrency and irreversible audited merge.
+- ADR 0005: immutable order snapshots, server totals, explicit transitions and external idempotency.
 
 ## Risks
 
@@ -87,13 +104,13 @@ postponed.
 - Cookie security requires HTTPS and `COOKIE_SECURE=true` in production. The symmetric access-token
   secret must be generated and rotated operationally.
 - Outbox retention/cleanup remains intentionally deferred until operational volume is known.
-- The F02 merge transaction re-parents current customer-owned relations. Each later module must add its
-  new foreign keys to this merge handler and extend the merge preservation integration test.
+- The customer merge transaction now re-parents F03 orders/interactions. Each later module must add its
+  new foreign keys to this handler and extend the merge preservation integration test.
 - Address normalization and fuzzy names are deliberately excluded; address is retained as PII text and
   ambiguous exact identifiers require human review.
 
 ## Next dependency
 
-F03 — Product & Order History. Read CORE, F03, this state file, customer public contracts/schema and
-the F02 integration tests. Order creation/status changes must update the Customer 360 timeline contract,
-atomically promote the first valid order's `PROSPECT` to `CUSTOMER`, and extend customer merge handling.
+F04 — Interaction Timeline, Task & Manual CSKH. Read CORE, F04, this state file, customer/order public
+contracts/schema and integration tests. Expand the F03 interaction foundation without rewriting
+immutable `ORDER_EVENT` records, and extend customer merge for tasks and all new interaction relations.

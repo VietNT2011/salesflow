@@ -4,6 +4,7 @@ import { createDatabaseClient } from '@salesflow/database';
 import { createApp } from './app.js';
 import { createCustomerRouter, CustomerStore } from './modules/customers/index.js';
 import { createIdentityRouter, IdentityStore } from './modules/identity-tenancy/index.js';
+import { createOrderRouter, OrderStore } from './modules/orders/index.js';
 
 const config = parseApiConfig(process.env);
 const database = createDatabaseClient(config.DATABASE_URL);
@@ -20,6 +21,7 @@ const app = createApp({
     production: config.NODE_ENV === 'production',
   }),
   customerRouter: createCustomerRouter(new CustomerStore(database, identityStore)),
+  orderRouter: createOrderRouter(new OrderStore(database, identityStore)),
   health: {
     database: () => database.ping(),
     redis: async () => {

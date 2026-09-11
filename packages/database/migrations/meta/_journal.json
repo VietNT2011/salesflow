@@ -22,6 +22,13 @@
       "when": 1789005600000,
       "tag": "0002_customer_360",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789009200000,
+      "tag": "0003_product_order_history",
+      "breakpoints": true
     }
   ]
 }
