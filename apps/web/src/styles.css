@@ -471,6 +471,41 @@ label small,
   color: #718078;
   font-size: 11px;
 }
+.automation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 22px;
+  align-items: start;
+}
+.automation-list,
+.execution-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.automation-list article,
+.execution-list article {
+  display: grid;
+  gap: 8px;
+  background: white;
+  padding: 18px;
+  border-left: 4px solid #d7ff65;
+}
+.automation-list h3,
+.automation-list p {
+  margin: 0;
+}
+.automation-list span,
+.execution-list span,
+.execution-list small {
+  color: #718078;
+  font-size: 11px;
+}
+.automation-list button,
+.execution-list button {
+  justify-self: start;
+  padding: 8px 12px;
+}
 .ticket-reply p {
   margin-bottom: 0;
   white-space: pre-wrap;
@@ -534,6 +569,7 @@ label small,
   .profile-grid,
   .review-grid,
   .ticket-detail-grid,
+  .automation-grid,
   .customer-toolbar {
     grid-template-columns: 1fr;
   }

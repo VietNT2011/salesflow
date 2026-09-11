@@ -10,10 +10,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@salesflow/automation-engine": "workspace:*",
     "@salesflow/config": "workspace:*",
+    "@salesflow/contracts": "workspace:*",
     "@salesflow/database": "workspace:*",
     "@salesflow/observability": "workspace:*",
     "bullmq": "^5.58.5",
+    "drizzle-orm": "^0.44.5",
     "ioredis": "^5.7.0"
   },
   "devDependencies": {

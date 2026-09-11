@@ -7,6 +7,7 @@ import { createIdentityRouter, IdentityStore } from './modules/identity-tenancy/
 import { createOrderRouter, OrderStore } from './modules/orders/index.js';
 import { createInteractionRouter, InteractionStore } from './modules/interactions/index.js';
 import { createTicketRouter, TicketStore } from './modules/tickets/index.js';
+import { AutomationStore, createAutomationRouter } from './modules/automations/index.js';
 
 const config = parseApiConfig(process.env);
 const database = createDatabaseClient(config.DATABASE_URL);
@@ -29,6 +30,7 @@ const app = createApp({
     new InteractionStore(database, identityStore, customerStore),
   ),
   ticketRouter: createTicketRouter(new TicketStore(database, identityStore, customerStore)),
+  automationRouter: createAutomationRouter(new AutomationStore(database, identityStore)),
   health: {
     database: () => database.ping(),
     redis: async () => {

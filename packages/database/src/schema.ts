@@ -64,6 +64,19 @@ export const ticketStatus = pgEnum('ticket_status', [
   'CLOSED',
 ]);
 export const ticketPriority = pgEnum('ticket_priority', ['LOW', 'NORMAL', 'HIGH', 'URGENT']);
+export const automationExecutionStatus = pgEnum('automation_execution_status', [
+  'RUNNING',
+  'SUCCEEDED',
+  'FAILED',
+  'DRY_RUN',
+]);
+export const automationActionStatus = pgEnum('automation_action_status', [
+  'PENDING',
+  'SUCCEEDED',
+  'SKIPPED',
+  'RETRY_SCHEDULED',
+  'FAILED',
+]);
 
 export const users = pgTable(
   'users',
@@ -669,6 +682,167 @@ export const ticketSlaNotifications = pgTable(
   },
   (table) => [
     uniqueIndex('ticket_sla_notifications_unique').on(table.ticketId, table.kind, table.deadline),
+  ],
+);
+
+export const automationRules = pgTable(
+  'automation_rules',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    name: text('name').notNull(),
+    trigger: text('trigger').notNull(),
+    active: boolean('active').notNull().default(false),
+    currentVersion: integer('current_version').notNull().default(1),
+    version: integer('version').notNull().default(1),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('automation_rules_workspace_active_trigger_idx').on(
+      table.workspaceId,
+      table.active,
+      table.trigger,
+    ),
+  ],
+);
+
+export const automationRuleVersions = pgTable(
+  'automation_rule_versions',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ruleId: uuid('rule_id')
+      .notNull()
+      .references(() => automationRules.id),
+    version: integer('version').notNull(),
+    conditionMode: text('condition_mode').notNull(),
+    conditions: jsonb('conditions').notNull(),
+    actions: jsonb('actions').notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('automation_rule_versions_unique').on(table.ruleId, table.version)],
+);
+
+export const automationExecutions = pgTable(
+  'automation_executions',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ruleId: uuid('rule_id')
+      .notNull()
+      .references(() => automationRules.id),
+    ruleVersionId: uuid('rule_version_id')
+      .notNull()
+      .references(() => automationRuleVersions.id),
+    rootEventId: uuid('root_event_id').notNull(),
+    targetType: text('target_type').notNull(),
+    targetId: uuid('target_id').notNull(),
+    chainDepth: integer('chain_depth').notNull().default(0),
+    status: automationExecutionStatus('status').notNull().default('RUNNING'),
+    event: jsonb('event').notNull(),
+    replayOfExecutionId: uuid('replay_of_execution_id'),
+    errorCode: text('error_code'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('automation_executions_idempotency_unique').on(
+      table.ruleVersionId,
+      table.rootEventId,
+      table.targetId,
+    ),
+    index('automation_executions_workspace_started_idx').on(
+      table.workspaceId,
+      table.startedAt,
+      table.id,
+    ),
+  ],
+);
+
+export const automationActionExecutions = pgTable(
+  'automation_action_executions',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    executionId: uuid('execution_id')
+      .notNull()
+      .references(() => automationExecutions.id),
+    position: integer('position').notNull(),
+    actionType: text('action_type').notNull(),
+    status: automationActionStatus('status').notNull().default('PENDING'),
+    attempts: integer('attempts').notNull().default(0),
+    errorCode: text('error_code'),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+    result: jsonb('result').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('automation_action_executions_position_unique').on(
+      table.executionId,
+      table.position,
+    ),
+  ],
+);
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    recipientMembershipId: uuid('recipient_membership_id')
+      .notNull()
+      .references(() => memberships.id),
+    executionId: uuid('execution_id').references(() => automationExecutions.id),
+    message: text('message').notNull(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('notifications_recipient_created_idx').on(
+      table.recipientMembershipId,
+      table.createdAt,
+      table.id,
+    ),
+  ],
+);
+
+export const automationScheduleClaims = pgTable(
+  'automation_schedule_claims',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    kind: text('kind').notNull(),
+    targetId: uuid('target_id').notNull(),
+    occurrence: text('occurrence').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('automation_schedule_claims_unique').on(
+      table.workspaceId,
+      table.kind,
+      table.targetId,
+      table.occurrence,
+    ),
   ],
 );
 

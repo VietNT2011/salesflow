@@ -12,6 +12,7 @@ import { OrderListPage } from '../features/orders/OrderListPage.js';
 import { TaskDashboardPage } from '../features/timeline/TaskDashboardPage.js';
 import { TicketDetailPage } from '../features/tickets/TicketDetailPage.js';
 import { TicketListPage } from '../features/tickets/TicketListPage.js';
+import { AutomationPage } from '../features/automation/AutomationPage.js';
 
 function Dashboard() {
   return (
@@ -73,6 +74,7 @@ const routes = [
       { path: 'tickets', element: <TicketListPage /> },
       { path: 'tickets/:ticketId', element: <TicketDetailPage /> },
       { path: 'tasks', element: <TaskDashboardPage /> },
+      { path: 'automations', element: <AutomationPage /> },
       { path: 'settings', element: <MemberSettingsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

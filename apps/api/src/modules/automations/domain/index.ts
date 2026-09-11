@@ -1,2 +1,9 @@
-// Reserved for F06 domain code; intentionally empty during F00.
-export {};
+export {
+  assertSafeWebhookUrl,
+  evaluateCondition,
+  evaluateConditions,
+  isManagerRole,
+  retryDelayMilliseconds,
+  triggerForEvent,
+  type AutomationContext,
+} from '@salesflow/automation-engine';

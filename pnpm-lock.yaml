@@ -44,6 +44,9 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.2.0
+      '@salesflow/automation-engine':
+        specifier: workspace:*
+        version: link:../../packages/automation-engine
       '@salesflow/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -151,9 +154,15 @@ importers:
 
   apps/worker:
     dependencies:
+      '@salesflow/automation-engine':
+        specifier: workspace:*
+        version: link:../../packages/automation-engine
       '@salesflow/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@salesflow/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@salesflow/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -163,6 +172,9 @@ importers:
       bullmq:
         specifier: ^5.58.5
         version: 5.81.4(supports-color@7.2.0)
+      drizzle-orm:
+        specifier: ^0.44.5
+        version: 0.44.7(postgres@3.4.9)
       ioredis:
         specifier: ^5.7.0
         version: 5.11.1(supports-color@7.2.0)
@@ -170,6 +182,12 @@ importers:
       '@salesflow/test-utils':
         specifier: workspace:*
         version: link:../../packages/test-utils
+
+  packages/automation-engine:
+    dependencies:
+      '@salesflow/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/config:
     dependencies:

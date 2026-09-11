@@ -1,2 +1,4 @@
-// Public module boundary. Feature implementation must export only stable contracts from here.
-export {};
+export * from './application/index.js';
+export * from './domain/index.js';
+export * from './infrastructure/index.js';
+export * from './presentation/index.js';

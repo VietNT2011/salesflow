@@ -4,7 +4,7 @@ Last updated: 2026-09-11
 
 ## Current milestone
 
-F05 — Customer Support Ticket & SLA is complete. F06–F08 have not been implemented; F09 remains
+F06 — Automation & Proactive Care is complete. F07–F08 have not been implemented; F09 remains
 postponed.
 
 ## Delivered
@@ -53,6 +53,15 @@ postponed.
   Repeated SLA sweeps claim `(ticket, kind, deadline)` uniquely before emitting escalation events.
 - React `/tickets` queue/detail, SLA badges/policy settings, assignment/reply/status controls and a
   populated Customer 360 Tickets tab.
+- Declarative allowlisted automation rules with immutable versions, ALL/ANY conditions, ordered
+  actions, optimistic enable/disable and an atomic 20-active-rule tenant cap.
+- Durable execution/action history keyed by rule-version + root-event + target. Duplicate delivery is
+  idempotent, transient work gets five exponential-backoff attempts with jitter, and audited replay
+  preserves the failed run.
+- Worker scheduler emits task-overdue, SLA-warning and workspace-local birthday events once per
+  occurrence. Create-task, assignment, tags and in-app notifications mutate atomically with audit and
+  derived outbox; email/channel/webhook actions enforce consent/archive/provider/SSRF policy first.
+- React `/automations` rule builder, status controls, dry-run and execution/replay UI.
 
 ## Public contracts
 
@@ -81,6 +90,10 @@ postponed.
   `/workspaces/:workspaceId/tickets`; SLA policy list/upsert under `/sla-policies`.
 - `@salesflow/contracts` exports ticket status/priority, command, cursor filter and business-hours SLA
   policy schemas.
+- Automations: rule list/create/read/version/status/dry-run, execution list/replay and notification
+  list routes under `/workspaces/:workspaceId`.
+- `@salesflow/contracts` and `@salesflow/automation-engine` export the closed trigger/condition/action
+  model, deterministic evaluation, event mapping, retry backoff and outbound URL guard.
 
 ## Schema and migrations
 
@@ -95,6 +108,8 @@ postponed.
   customer tasks with assignee/status/due indexes.
 - `0005_tickets_sla.sql`: ticket sequence/policy/ticket/reply/pause/notification tables and ticket
   relations for Customer 360 interactions/tasks.
+- `0006_automations.sql`: immutable rules/versions, execution/action logs, notifications and idempotent
+  scheduler claims.
 - Unique constraints make normalized account email, workspace slug, active invitation, membership,
   team name and the single workspace Owner deterministic under concurrent requests.
 
@@ -102,12 +117,12 @@ postponed.
 
 - `pnpm install --no-frozen-lockfile`: passed; lockfile includes F01 runtime/test dependencies.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`: passed across the monorepo.
-- `pnpm contracts:check`: covered by the final quality gate (8 tests).
-- `pnpm test`: passed (11 files, 32 tests), including ticket transition/business-calendar rules and
-  QueryClient-backed React ticket route smoke tests.
+- `pnpm contracts:check`: covered by the final quality gate (9 tests).
+- `pnpm test`: passed (12 files, 36 tests), including closed-registry automation evaluation,
+  retry/SSRF guards and QueryClient-backed React automation route smoke tests.
 - `pnpm check`: passed end-to-end for formatting, lint, typecheck, contract tests, unit tests and builds
   across API, worker, web and shared packages; the Vite production bundle built successfully.
-- `pnpm test:integration`: passed (7 files, 24 tests) with isolated real PostgreSQL/Redis containers.
+- `pnpm test:integration`: passed (9 files, 31 tests) with isolated real PostgreSQL/Redis containers.
   F01 covers register → workspace → invite → accept, refresh reuse revocation, concurrent slug/invite,
   tenant isolation, RBAC, deactivation, team creation and ownership transfer.
   F02 covers cross-tenant contacts, duplicate preview, stale version conflicts, assignment visibility,
@@ -118,7 +133,10 @@ postponed.
   interaction/task preservation through customer merge.
   F05 covers concurrent ticket numbers/replies, stable queue cursor, cross-tenant hiding, resolution and
   inbound reopen rules, persisted SLA pause/resume and restart-safe breach emission.
-- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. Migration `0005` passed locally and is
+  F06 covers immutable rule versions/stale edits/dry-run/tenant isolation, duplicate root-event
+  execution, fulfilled-order tasks, SLA manager notification, consent/provider skips, replay history
+  and idempotent overdue/birthday scheduling.
+- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. Migration `0006` passed locally and is
   covered from blank by the database integration test.
 
 ## Architecture decisions
@@ -130,6 +148,7 @@ postponed.
 - ADR 0005: immutable order snapshots, server totals, explicit transitions and external idempotency.
 - ADR 0006: immutable interaction corrections/moderation, PII-safe diffs and database-time tasks.
 - ADR 0007: persisted business-time SLA state, row-locked replies/transitions and idempotent escalation.
+- ADR 0008: declarative automation registry, durable execution identity, chain cap and adapter handoff.
 
 ## Risks
 
@@ -142,9 +161,13 @@ postponed.
   add its new foreign keys to this handler and extend the merge preservation integration test.
 - Address normalization and fuzzy names are deliberately excluded; address is retained as PII text and
   ambiguous exact identifiers require human review.
+- Email/webhook delivery requests are durable and policy-checked, but a production SMTP/provider
+  credential adapter is intentionally not configured in the repository. F07/F08 add channel policy and
+  provider delivery; production webhook delivery must revalidate DNS/redirect targets as ADR 0008 says.
 
 ## Next dependency
 
-F06 — Automation & Proactive Care. Read CORE, F06, this state file and ticket/order/customer/task
-outbox contracts. Implement allowlisted versioned rules, idempotent executions, retry/review history,
-dry-run and outbound consent/provider-policy guards without user JavaScript or SQL.
+F07 — Omnichannel Inbox Foundation & Website. Read CORE, F07, this state file, customer identity,
+timeline, ticket and automation adapter contracts. Add channel/conversation/message/inbox-event models,
+public form/webchat ingestion, identity review and two-agent optimistic concurrency without exposing a
+browser secret.

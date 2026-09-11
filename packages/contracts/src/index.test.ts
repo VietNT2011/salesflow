@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  automationDefinitionSchema,
   createOrderSchema,
   createManualInteractionSchema,
   createTicketSchema,
@@ -90,5 +91,33 @@ describe('foundation contracts', () => {
     });
     expect(result).toMatchObject({ priority: 'NORMAL', sourceChannel: 'MANUAL' });
     expect(createTicketSchema.safeParse({ customerId: result.customerId }).success).toBe(false);
+  });
+
+  it('allows only declarative automation actions and caps the ordered action list', () => {
+    expect(
+      automationDefinitionSchema.safeParse({
+        name: 'Fulfilled follow-up',
+        trigger: 'ORDER_FULFILLED',
+        actions: [{ type: 'CREATE_TASK', title: 'Call customer', dueInMinutes: 60 }],
+      }).success,
+    ).toBe(true);
+    expect(
+      automationDefinitionSchema.safeParse({
+        name: 'Unsafe code',
+        trigger: 'ORDER_FULFILLED',
+        actions: [{ type: 'JAVASCRIPT', source: 'process.exit()' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      automationDefinitionSchema.safeParse({
+        name: 'Too many actions',
+        trigger: 'ORDER_FULFILLED',
+        actions: Array.from({ length: 11 }, () => ({
+          type: 'NOTIFY_IN_APP',
+          message: 'Follow up',
+          roles: ['OWNER'],
+        })),
+      }).success,
+    ).toBe(false);
   });
 });

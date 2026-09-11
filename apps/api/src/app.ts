@@ -18,6 +18,7 @@ export interface AppOptions {
   orderRouter?: Router;
   interactionRouter?: Router;
   ticketRouter?: Router;
+  automationRouter?: Router;
 }
 
 export function createApp(options: AppOptions): Express {
@@ -40,6 +41,7 @@ export function createApp(options: AppOptions): Express {
   if (options.orderRouter) app.use('/api/v1', options.orderRouter);
   if (options.interactionRouter) app.use('/api/v1', options.interactionRouter);
   if (options.ticketRouter) app.use('/api/v1', options.ticketRouter);
+  if (options.automationRouter) app.use('/api/v1', options.automationRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -12,6 +12,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
     "@salesflow/config": "workspace:*",
+    "@salesflow/automation-engine": "workspace:*",
     "@salesflow/contracts": "workspace:*",
     "@salesflow/database": "workspace:*",
     "@salesflow/observability": "workspace:*",

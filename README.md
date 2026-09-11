@@ -1,8 +1,8 @@
 # SalesFlow
 
 SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
-F00 foundation through F05 customer-support ticket/SLA slices. Channel business behavior starts in
-F07 and is intentionally not implemented yet.
+F00 foundation through F06 automation/proactive-care slices. Channel business behavior starts in F07
+and is intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -90,3 +90,13 @@ Architecture decisions and current verification evidence live in `docs/`.
   Every change emits a Customer 360 timeline event, audit record and transactional outbox event.
 - Concurrent replies/transitions use row locks plus optimistic versions. Repeated SLA sweeps safely
   converge on one persisted warning/breach event per ticket deadline.
+
+## F06 automation flow
+
+- Open `/automations` to build allowlisted trigger/condition/action rules, dry-run them, enable/disable
+  with optimistic versions and inspect per-action execution history.
+- BullMQ consumes transactional outbox events. A database unique key on rule version + root event +
+  target prevents duplicate side effects across retries and restarts; failed runs can be replayed.
+- The scheduler emits task-overdue, SLA-warning and workspace-local birthday events exactly once per
+  occurrence. Outbound email/webhook requests are durable adapter handoffs; consent, archived-customer,
+  provider policy and obvious SSRF destinations are checked before handoff.

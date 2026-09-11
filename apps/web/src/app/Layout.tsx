@@ -7,6 +7,7 @@ const navigation = [
   ['/inbox', 'Hộp thư'],
   ['/tickets', 'Ticket'],
   ['/tasks', 'Công việc'],
+  ['/automations', 'Tự động hóa'],
   ['/settings', 'Cài đặt'],
 ] as const;
 
@@ -25,7 +26,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <p className="phase">Ticket & SLA · F05</p>
+        <p className="phase">Automation · F06</p>
       </aside>
       <main className="content">
         <Outlet />

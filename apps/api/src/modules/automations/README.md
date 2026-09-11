@@ -2,6 +2,9 @@
 
 **Feature:** F06
 
-This F00 directory only establishes the module boundary. No business behavior is implemented.
-Future code is split into domain, application, infrastructure and presentation layers. Consumers
-must import the public surface from index.ts; infrastructure details remain private.
+F06 implements declarative, allowlisted `WHEN / IF ALL|ANY / THEN` rules. Rule edits append immutable
+versions; activation has an optimistic version and a transactionally enforced 20-rule tenant limit.
+
+The HTTP surface supports list/create/read/version/enable/disable, non-mutating dry-run, execution
+history, audited replay and in-app notifications. Only OWNER/ADMIN configure or replay rules. Runtime
+effects are handled by the worker through the F00 transactional outbox.

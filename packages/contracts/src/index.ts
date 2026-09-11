@@ -439,6 +439,115 @@ export type ReplyTicketInput = z.infer<typeof replyTicketSchema>;
 export type TicketListQuery = z.infer<typeof ticketListQuerySchema>;
 export type UpsertSlaPolicyInput = z.infer<typeof upsertSlaPolicySchema>;
 
+export const automationTriggerSchema = z.enum([
+  'CUSTOMER_CREATED',
+  'CUSTOMER_TAGGED',
+  'ORDER_CONFIRMED',
+  'ORDER_FULFILLED',
+  'TICKET_CREATED',
+  'TICKET_STATUS_CHANGED',
+  'SLA_WARNING',
+  'SLA_BREACHED',
+  'TASK_OVERDUE',
+  'CUSTOMER_BIRTHDAY',
+]);
+export const automationConditionSchema = z.object({
+  field: z.enum([
+    'EVENT_TYPE',
+    'CUSTOMER_LIFECYCLE',
+    'CUSTOMER_TAG',
+    'ORDER_STATUS',
+    'TICKET_STATUS',
+    'TICKET_PRIORITY',
+  ]),
+  operator: z.enum(['EQUALS', 'IN', 'CONTAINS']),
+  value: z.union([
+    z.string().trim().min(1).max(500),
+    z.array(z.string().trim().min(1).max(500)).min(1).max(20),
+  ]),
+});
+const createTaskAutomationActionSchema = z.object({
+  type: z.literal('CREATE_TASK'),
+  title: z.string().trim().min(1).max(300),
+  dueInMinutes: z.number().int().min(0).max(525_600),
+  assigneeMembershipId: z.string().uuid().optional(),
+});
+const notifyAutomationActionSchema = z.object({
+  type: z.literal('NOTIFY_IN_APP'),
+  message: z.string().trim().min(1).max(2_000),
+  roles: z.array(workspaceRoleSchema).min(1).max(6).default(['CS_MANAGER']),
+});
+const assignUserAutomationActionSchema = z.object({
+  type: z.literal('ASSIGN_USER'),
+  membershipId: z.string().uuid(),
+});
+const assignTeamAutomationActionSchema = z.object({
+  type: z.literal('ASSIGN_TEAM'),
+  teamId: z.string().uuid(),
+});
+const tagAutomationActionSchema = z.object({
+  type: z.enum(['ADD_TAG', 'REMOVE_TAG']),
+  tag: z.string().trim().min(1).max(100),
+});
+const emailAutomationActionSchema = z.object({
+  type: z.literal('SEND_EMAIL'),
+  subject: z.string().trim().min(1).max(300),
+  body: z.string().trim().min(1).max(20_000),
+});
+const channelAutomationActionSchema = z.object({
+  type: z.literal('SEND_CHANNEL_MESSAGE'),
+  body: z.string().trim().min(1).max(20_000),
+});
+const webhookAutomationActionSchema = z.object({
+  type: z.literal('OUTBOUND_WEBHOOK'),
+  url: z.string().url().max(2_000),
+});
+export const automationActionSchema = z.union([
+  createTaskAutomationActionSchema,
+  notifyAutomationActionSchema,
+  assignUserAutomationActionSchema,
+  assignTeamAutomationActionSchema,
+  tagAutomationActionSchema,
+  emailAutomationActionSchema,
+  channelAutomationActionSchema,
+  webhookAutomationActionSchema,
+]);
+export const automationDefinitionSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  trigger: automationTriggerSchema,
+  conditionMode: z.enum(['ALL', 'ANY']).default('ALL'),
+  conditions: z.array(automationConditionSchema).max(20).default([]),
+  actions: z.array(automationActionSchema).min(1).max(10),
+});
+export const updateAutomationSchema = automationDefinitionSchema.extend({
+  version: z.number().int().positive(),
+});
+export const automationStatusSchema = z.object({
+  version: z.number().int().positive(),
+  active: z.boolean(),
+});
+export const automationDryRunSchema = z.object({
+  eventType: z.string().trim().min(1).max(200),
+  aggregateType: z.string().trim().min(1).max(100),
+  aggregateId: z.string().uuid(),
+  payload: z.record(z.string(), z.unknown()).default({}),
+});
+export const automationExecutionListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  ruleId: z.string().uuid().optional(),
+  status: z.enum(['RUNNING', 'SUCCEEDED', 'FAILED', 'DRY_RUN']).optional(),
+});
+export const replayAutomationSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+});
+
+export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
+export type AutomationCondition = z.infer<typeof automationConditionSchema>;
+export type AutomationAction = z.infer<typeof automationActionSchema>;
+export type AutomationDefinition = z.infer<typeof automationDefinitionSchema>;
+export type UpdateAutomationInput = z.infer<typeof updateAutomationSchema>;
+export type AutomationDryRunInput = z.infer<typeof automationDryRunSchema>;
+
 export const openApiDocument = {
   openapi: '3.1.0',
   info: { title: 'SalesFlow API', version: '0.0.0' },
@@ -538,6 +647,27 @@ export const openApiDocument = {
     '/api/v1/workspaces/{workspaceId}/sla-policies': {
       get: { summary: 'List ticket SLA policies' },
       put: { summary: 'Create or optimistically update an SLA policy' },
+    },
+    '/api/v1/workspaces/{workspaceId}/automations': {
+      get: { summary: 'List versioned automation rules' },
+      post: { summary: 'Create an allowlisted automation rule' },
+    },
+    '/api/v1/workspaces/{workspaceId}/automations/{ruleId}': {
+      get: { summary: 'Read an automation rule and immutable versions' },
+      put: { summary: 'Create a new immutable automation version' },
+      patch: { summary: 'Optimistically enable or disable an automation' },
+    },
+    '/api/v1/workspaces/{workspaceId}/automations/{ruleId}/dry-run': {
+      post: { summary: 'Evaluate a rule without mutation' },
+    },
+    '/api/v1/workspaces/{workspaceId}/automation-executions': {
+      get: { summary: 'List automation execution and action history' },
+    },
+    '/api/v1/workspaces/{workspaceId}/automation-executions/{executionId}/replay': {
+      post: { summary: 'Request an audited replay as a new execution' },
+    },
+    '/api/v1/workspaces/{workspaceId}/notifications': {
+      get: { summary: 'List in-app automation notifications' },
     },
   },
 } as const;
