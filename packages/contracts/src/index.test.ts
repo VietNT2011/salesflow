@@ -11,6 +11,10 @@ import {
   errorEnvelopeSchema,
   openApiDocument,
   updateMemberSchema,
+  createCaptureFormSchema,
+  publicFormSubmissionSchema,
+  webchatInboundSchema,
+  updateConversationSchema,
 } from './index.js';
 
 describe('foundation contracts', () => {
@@ -119,5 +123,27 @@ describe('foundation contracts', () => {
         })),
       }).success,
     ).toBe(false);
+  });
+
+  it('keeps public channel payloads bounded and conversation commands optimistic', () => {
+    const form = createCaptureFormSchema.parse({
+      name: 'Support request',
+      fields: [{ key: 'email', label: 'Email', required: true }],
+    });
+    expect(form.source).toBe('WEBSITE');
+    expect(
+      publicFormSubmissionSchema.safeParse({
+        eventId: '33587f10-8a5e-4f71-87c2-acf7c87a7a88',
+        email: 'person@example.com',
+      }).success,
+    ).toBe(true);
+    expect(
+      webchatInboundSchema.safeParse({
+        eventId: '33587f10-8a5e-4f71-87c2-acf7c87a7a88',
+        visitorId: '43587f10-8a5e-4f71-87c2-acf7c87a7a88',
+        message: 'Hello',
+      }).success,
+    ).toBe(true);
+    expect(updateConversationSchema.safeParse({ version: 1 }).success).toBe(false);
   });
 });

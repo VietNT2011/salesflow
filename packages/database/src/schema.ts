@@ -77,6 +77,23 @@ export const automationActionStatus = pgEnum('automation_action_status', [
   'RETRY_SCHEDULED',
   'FAILED',
 ]);
+export const conversationStatus = pgEnum('conversation_status', ['OPEN', 'PENDING', 'CLOSED']);
+export const messageDirection = pgEnum('message_direction', ['INBOUND', 'OUTBOUND']);
+export const messageStatus = pgEnum('message_status', [
+  'RECEIVED',
+  'QUEUED',
+  'SENT',
+  'DELIVERED',
+  'READ',
+  'FAILED',
+]);
+export const inboxEventStatus = pgEnum('inbox_event_status', [
+  'RECEIVED',
+  'PROCESSING',
+  'PROCESSED',
+  'REVIEW',
+  'FAILED',
+]);
 
 export const users = pgTable(
   'users',
@@ -843,6 +860,163 @@ export const automationScheduleClaims = pgTable(
       table.targetId,
       table.occurrence,
     ),
+  ],
+);
+
+export const channelConnections = pgTable(
+  'channel_connections',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    provider: text('provider').notNull(),
+    name: text('name').notNull(),
+    status: text('status').notNull().default('ACTIVE'),
+    config: jsonb('config').notNull().default({}),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('channel_connections_workspace_provider_idx').on(table.workspaceId, table.provider),
+  ],
+);
+
+export const captureForms = pgTable(
+  'capture_forms',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    publicId: uuid('public_id').notNull(),
+    name: text('name').notNull(),
+    status: text('status').notNull().default('DRAFT'),
+    fields: jsonb('fields').notNull(),
+    source: text('source').notNull().default('WEBSITE'),
+    consentText: text('consent_text'),
+    allowedOrigins: jsonb('allowed_origins').notNull().default([]),
+    createTicket: boolean('create_ticket').notNull().default(false),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('capture_forms_public_id_unique').on(table.publicId),
+    index('capture_forms_workspace_status_idx').on(table.workspaceId, table.status),
+  ],
+);
+
+export const inboxEvents = pgTable(
+  'inbox_events',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    provider: text('provider').notNull(),
+    connectionKey: text('connection_key').notNull(),
+    externalEventId: text('external_event_id').notNull(),
+    eventType: text('event_type').notNull(),
+    payload: jsonb('payload').notNull(),
+    status: inboxEventStatus('status').notNull().default('RECEIVED'),
+    attempts: integer('attempts').notNull().default(0),
+    errorCode: text('error_code'),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('inbox_events_provider_event_unique').on(
+      table.workspaceId,
+      table.provider,
+      table.connectionKey,
+      table.externalEventId,
+    ),
+    index('inbox_events_status_idx').on(table.status, table.createdAt, table.id),
+  ],
+);
+
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    connectionId: uuid('connection_id').references(() => channelConnections.id),
+    customerId: uuid('customer_id').references(() => customers.id),
+    channelIdentityId: uuid('channel_identity_id').references(() => channelIdentities.id),
+    provider: text('provider').notNull(),
+    externalThreadId: text('external_thread_id').notNull(),
+    status: conversationStatus('status').notNull().default('OPEN'),
+    ownerMembershipId: uuid('owner_membership_id').references(() => memberships.id),
+    teamId: uuid('team_id').references(() => teams.id),
+    unreadCount: integer('unread_count').notNull().default(0),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('conversations_external_thread_unique').on(
+      table.workspaceId,
+      table.provider,
+      table.externalThreadId,
+    ),
+    index('conversations_workspace_inbox_idx').on(
+      table.workspaceId,
+      table.status,
+      table.lastMessageAt,
+      table.id,
+    ),
+  ],
+);
+
+export const conversationParticipants = pgTable(
+  'conversation_participants',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id),
+    kind: text('kind').notNull(),
+    externalId: text('external_id'),
+    displayName: text('display_name'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('conversation_participants_conversation_idx').on(table.conversationId)],
+);
+
+export const messages = pgTable(
+  'messages',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id),
+    customerId: uuid('customer_id').references(() => customers.id),
+    direction: messageDirection('direction').notNull(),
+    providerMessageId: text('provider_message_id').notNull(),
+    body: text('body').notNull(),
+    status: messageStatus('status').notNull(),
+    actorId: uuid('actor_id').references(() => users.id),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('messages_provider_message_unique').on(
+      table.workspaceId,
+      table.conversationId,
+      table.providerMessageId,
+    ),
+    index('messages_conversation_sent_idx').on(table.conversationId, table.sentAt, table.id),
   ],
 );
 

@@ -548,6 +548,74 @@ export type AutomationDefinition = z.infer<typeof automationDefinitionSchema>;
 export type UpdateAutomationInput = z.infer<typeof updateAutomationSchema>;
 export type AutomationDryRunInput = z.infer<typeof automationDryRunSchema>;
 
+export const captureFieldSchema = z.object({
+  key: z.enum(['name', 'email', 'phone', 'message']),
+  label: z.string().trim().min(1).max(100),
+  required: z.boolean().default(false),
+});
+export const createCaptureFormSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  fields: z.array(captureFieldSchema).min(1).max(20),
+  source: z.string().trim().min(1).max(100).default('WEBSITE'),
+  consentText: z.string().trim().min(1).max(2_000).optional(),
+  allowedOrigins: z.array(z.string().url()).max(20).default([]),
+  createTicket: z.boolean().default(false),
+});
+export const updateCaptureFormSchema = createCaptureFormSchema.partial().extend({
+  version: z.number().int().positive(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+});
+export const publicFormSubmissionSchema = z.object({
+  eventId: z.string().uuid(),
+  name: z.string().trim().min(1).max(200).optional(),
+  email: z.string().trim().email().max(320).optional(),
+  phone: z.string().trim().min(3).max(50).optional(),
+  message: z.string().trim().min(1).max(10_000).optional(),
+  consent: z.boolean().default(false),
+  website: z.string().max(0).optional(),
+  utm: z.record(z.string(), z.string().max(500)).default({}),
+  referrer: z.string().url().max(2_000).optional(),
+  landingPage: z.string().url().max(2_000).optional(),
+});
+export const webchatInboundSchema = z.object({
+  eventId: z.string().uuid(),
+  visitorId: z.string().uuid(),
+  conversationId: z.string().uuid().optional(),
+  message: z.string().trim().min(1).max(10_000),
+  name: z.string().trim().min(1).max(200).optional(),
+  email: z.string().trim().email().max(320).optional(),
+  phone: z.string().trim().min(3).max(50).optional(),
+});
+export const conversationListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.enum(['OPEN', 'PENDING', 'CLOSED']).optional(),
+});
+export const updateConversationSchema = z
+  .object({
+    version: z.number().int().positive(),
+    status: z.enum(['OPEN', 'PENDING', 'CLOSED']).optional(),
+    ownerMembershipId: z.string().uuid().nullable().optional(),
+    teamId: z.string().uuid().nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).some((key) => key !== 'version'), {
+    message: 'At least one conversation change is required',
+  });
+export const replyConversationSchema = z.object({
+  version: z.number().int().positive(),
+  message: z.string().trim().min(1).max(10_000),
+});
+export const createConversationTicketSchema = z.object({
+  subject: z.string().trim().min(1).max(300),
+  description: z.string().trim().max(10_000).optional(),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
+});
+
+export type CreateCaptureFormInput = z.infer<typeof createCaptureFormSchema>;
+export type UpdateCaptureFormInput = z.infer<typeof updateCaptureFormSchema>;
+export type PublicFormSubmissionInput = z.infer<typeof publicFormSubmissionSchema>;
+export type WebchatInboundInput = z.infer<typeof webchatInboundSchema>;
+export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
+
 export const openApiDocument = {
   openapi: '3.1.0',
   info: { title: 'SalesFlow API', version: '0.0.0' },
@@ -668,6 +736,27 @@ export const openApiDocument = {
     },
     '/api/v1/workspaces/{workspaceId}/notifications': {
       get: { summary: 'List in-app automation notifications' },
+    },
+    '/api/v1/workspaces/{workspaceId}/capture-forms': {
+      get: { summary: 'List website capture forms' },
+      post: { summary: 'Create a draft website capture form' },
+    },
+    '/api/v1/public/forms/{publicId}': {
+      get: { summary: 'Read a published public form without secrets' },
+      post: { summary: 'Persist an idempotent website submission' },
+    },
+    '/api/v1/public/webchat/{publicId}/messages': {
+      post: { summary: 'Persist an idempotent inbound webchat message' },
+    },
+    '/api/v1/workspaces/{workspaceId}/conversations': {
+      get: { summary: 'List the visible omnichannel inbox' },
+    },
+    '/api/v1/workspaces/{workspaceId}/conversations/{conversationId}': {
+      get: { summary: 'Read a conversation with Customer 360 context' },
+      patch: { summary: 'Optimistically assign or update a conversation' },
+    },
+    '/api/v1/workspaces/{workspaceId}/conversations/{conversationId}/replies': {
+      post: { summary: 'Append an optimistic outbound reply' },
     },
   },
 } as const;

@@ -1,8 +1,7 @@
 # SalesFlow
 
 SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
-F00 foundation through F06 automation/proactive-care slices. Channel business behavior starts in F07
-and is intentionally not implemented yet.
+F00 foundation through F07 website/webchat inbox slices. Facebook Messenger remains the F08 adapter.
 
 ## Prerequisites
 
@@ -100,3 +99,14 @@ Architecture decisions and current verification evidence live in `docs/`.
 - The scheduler emits task-overdue, SLA-warning and workspace-local birthday events exactly once per
   occurrence. Outbound email/webhook requests are durable adapter handoffs; consent, archived-customer,
   provider policy and obvious SSRF destinations are checked before handoff.
+
+## F07 website inbox flow
+
+- Owners/Admins create and publish forms from `/settings/forms`; each form has an opaque public id,
+  allowed origins, field/consent policy and an optional ticket default.
+- Public `/forms/:publicId` and `/chat/:publicId` pages accept submissions without exposing API keys.
+  The API returns `202` after writing a unique inbox event and transactional outbox record.
+- The worker resolves exact email/phone identity, creates a prospect when needed, and links the inbound
+  message to Customer 360, conversation and timeline. Conflicting identifiers remain reviewable.
+- `/inbox` supports conversation visibility, Customer 360 links, replies and optimistic conflicts;
+  conversations can create tickets after identity resolution.

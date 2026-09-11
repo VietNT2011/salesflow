@@ -185,6 +185,101 @@ textarea {
   background: #fbfbf7;
   font: inherit;
 }
+.honeypot {
+  position: absolute;
+  left: -10000px;
+}
+.inbox-heading,
+.message-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.inbox-heading h1 {
+  font-size: clamp(42px, 6vw, 72px);
+}
+.inbox-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.35fr) minmax(0, 1fr);
+  min-height: 560px;
+  background: white;
+}
+.conversation-list {
+  border-right: 1px solid #dfe3dc;
+}
+.conversation-list button {
+  width: 100%;
+  border-radius: 0;
+  background: white;
+  color: #17251f;
+  text-align: left;
+  display: grid;
+  gap: 7px;
+  border-bottom: 1px solid #eef0eb;
+}
+.conversation-list button.selected {
+  background: #eff6db;
+}
+.conversation-list span {
+  color: #66736d;
+  font-size: 12px;
+}
+.message-pane {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.message-stream {
+  display: grid;
+  gap: 12px;
+  flex: 1;
+  align-content: end;
+  padding: 24px 0;
+}
+.message-stream article {
+  max-width: 75%;
+  padding: 12px 16px;
+  background: #edf0eb;
+  border-radius: 14px;
+}
+.message-stream article p {
+  margin: 0 0 6px;
+}
+.message-stream article small {
+  color: #68766e;
+}
+.message-stream .message-outbound {
+  margin-left: auto;
+  background: #d7ff65;
+}
+.reply-box {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+.reply-box textarea {
+  min-height: 72px;
+}
+.customer-list > article {
+  background: white;
+  padding: 22px;
+}
+.webchat-card {
+  width: min(100%, 520px);
+}
+.chat-preview {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.chat-preview p {
+  background: #d7ff65;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin: 0 0 0 auto;
+}
 .customer-heading,
 .profile-heading {
   display: flex;

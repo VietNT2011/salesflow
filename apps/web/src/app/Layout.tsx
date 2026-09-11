@@ -26,7 +26,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <p className="phase">Automation · F06</p>
+        <p className="phase">Website inbox · F07</p>
       </aside>
       <main className="content">
         <Outlet />

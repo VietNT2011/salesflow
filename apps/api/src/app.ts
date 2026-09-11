@@ -19,6 +19,8 @@ export interface AppOptions {
   interactionRouter?: Router;
   ticketRouter?: Router;
   automationRouter?: Router;
+  channelPublicRouter?: Router;
+  channelRouter?: Router;
 }
 
 export function createApp(options: AppOptions): Express {
@@ -27,7 +29,14 @@ export function createApp(options: AppOptions): Express {
 
   app.disable('x-powered-by');
   app.use(helmet());
-  app.use(cors({ origin: options.webOrigin, credentials: true }));
+  app.use((request, response, next) => {
+    // ChannelStore enforces each form's allowedOrigins. Public requests use reflected CORS so an
+    // approved external website can reach that policy; authenticated routes keep the web allowlist.
+    cors({
+      credentials: true,
+      origin: request.path.startsWith('/api/v1/public/') ? true : options.webOrigin,
+    })(request, response, next);
+  });
   app.use(express.json({ limit: '1mb' }));
   app.use(requestContext);
   app.use(pinoHttp({ logger, genReqId: (request) => request.requestId }));
@@ -36,12 +45,15 @@ export function createApp(options: AppOptions): Express {
   app.get('/api/v1/openapi.json', (request, response) => {
     response.json({ data: openApiDocument, meta: { requestId: request.requestId } });
   });
+  // Public capture routes must run before the identity router's authentication boundary.
+  if (options.channelPublicRouter) app.use('/api/v1', options.channelPublicRouter);
   if (options.identityRouter) app.use('/api/v1', options.identityRouter);
   if (options.customerRouter) app.use('/api/v1', options.customerRouter);
   if (options.orderRouter) app.use('/api/v1', options.orderRouter);
   if (options.interactionRouter) app.use('/api/v1', options.interactionRouter);
   if (options.ticketRouter) app.use('/api/v1', options.ticketRouter);
   if (options.automationRouter) app.use('/api/v1', options.automationRouter);
+  if (options.channelRouter) app.use('/api/v1', options.channelRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

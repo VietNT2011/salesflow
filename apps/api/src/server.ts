@@ -8,12 +8,19 @@ import { createOrderRouter, OrderStore } from './modules/orders/index.js';
 import { createInteractionRouter, InteractionStore } from './modules/interactions/index.js';
 import { createTicketRouter, TicketStore } from './modules/tickets/index.js';
 import { AutomationStore, createAutomationRouter } from './modules/automations/index.js';
+import {
+  ChannelStore,
+  createChannelPublicRouter,
+  createChannelRouter,
+} from './modules/channels/index.js';
 
 const config = parseApiConfig(process.env);
 const database = createDatabaseClient(config.DATABASE_URL);
 const redis = new Redis(config.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
 const identityStore = new IdentityStore(database);
 const customerStore = new CustomerStore(database, identityStore);
+const channelStore = new ChannelStore(database, identityStore);
+const ticketStore = new TicketStore(database, identityStore, customerStore);
 
 const app = createApp({
   webOrigin: config.WEB_ORIGIN,
@@ -29,8 +36,10 @@ const app = createApp({
   interactionRouter: createInteractionRouter(
     new InteractionStore(database, identityStore, customerStore),
   ),
-  ticketRouter: createTicketRouter(new TicketStore(database, identityStore, customerStore)),
+  ticketRouter: createTicketRouter(ticketStore),
   automationRouter: createAutomationRouter(new AutomationStore(database, identityStore)),
+  channelPublicRouter: createChannelPublicRouter(channelStore),
+  channelRouter: createChannelRouter(channelStore, ticketStore),
   health: {
     database: () => database.ping(),
     redis: async () => {

@@ -4,7 +4,7 @@ Last updated: 2026-09-11
 
 ## Current milestone
 
-F06 — Automation & Proactive Care is complete. F07–F08 have not been implemented; F09 remains
+F07 — Omnichannel Inbox Foundation & Website is complete. F08 Facebook Messenger is next; F09 remains
 postponed.
 
 ## Delivered
@@ -62,6 +62,13 @@ postponed.
   occurrence. Create-task, assignment, tags and in-app notifications mutate atomically with audit and
   derived outbox; email/channel/webhook actions enforce consent/archive/provider/SSRF policy first.
 - React `/automations` rule builder, status controls, dry-run and execution/replay UI.
+- Website capture forms and hosted webchat with opaque public ids, origin/consent/honeypot/rate-limit
+  controls and optional conversation-to-ticket creation.
+- Durable `InboxEvent` ingestion and worker normalization into Customer identity, conversation,
+  participant, immutable message and Customer 360 timeline records. Duplicate delivery is safe across
+  retries; ambiguous identity preserves the message and routes the event to review.
+- Authenticated split-view `/inbox`, form settings, public form and webchat pages. Conversation
+  assignment/status/reply commands use optimistic version conflict handling and tenant visibility.
 
 ## Public contracts
 
@@ -94,6 +101,8 @@ postponed.
   list routes under `/workspaces/:workspaceId`.
 - `@salesflow/contracts` and `@salesflow/automation-engine` export the closed trigger/condition/action
   model, deterministic evaluation, event mapping, retry backoff and outbound URL guard.
+- Channels: form CRUD/public form-webchat ingest endpoints, conversation list/detail/update/reply and
+  conversation-to-ticket command under `/workspaces/:workspaceId` and `/public`.
 
 ## Schema and migrations
 
@@ -110,6 +119,8 @@ postponed.
   relations for Customer 360 interactions/tasks.
 - `0006_automations.sql`: immutable rules/versions, execution/action logs, notifications and idempotent
   scheduler claims.
+- `0007_inbox_website.sql`: channel connections, capture forms, inbox events, conversations,
+  participants and immutable messages with provider/thread/event uniqueness indexes.
 - Unique constraints make normalized account email, workspace slug, active invitation, membership,
   team name and the single workspace Owner deterministic under concurrent requests.
 
@@ -136,8 +147,8 @@ postponed.
   F06 covers immutable rule versions/stale edits/dry-run/tenant isolation, duplicate root-event
   execution, fulfilled-order tasks, SLA manager notification, consent/provider skips, replay history
   and idempotent overdue/birthday scheduling.
-- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. Migration `0006` passed locally and is
-  covered from blank by the database integration test.
+- Local Compose PostgreSQL 17, Redis 7 and Mailpit were healthy through F06. Migration `0007` is
+  included and covered by the blank-database integration path when Docker is available.
 
 ## Architecture decisions
 
@@ -149,6 +160,7 @@ postponed.
 - ADR 0006: immutable interaction corrections/moderation, PII-safe diffs and database-time tasks.
 - ADR 0007: persisted business-time SLA state, row-locked replies/transitions and idempotent escalation.
 - ADR 0008: declarative automation registry, durable execution identity, chain cap and adapter handoff.
+- ADR 0009: persist website/webchat inbox events before asynchronous identity normalization.
 
 ## Risks
 
@@ -167,7 +179,5 @@ postponed.
 
 ## Next dependency
 
-F07 — Omnichannel Inbox Foundation & Website. Read CORE, F07, this state file, customer identity,
-timeline, ticket and automation adapter contracts. Add channel/conversation/message/inbox-event models,
-public form/webchat ingestion, identity review and two-agent optimistic concurrency without exposing a
-browser secret.
+F08 — Facebook Messenger connector. Use the existing channel adapter, inbox event and identity
+contracts; verify current Meta OAuth/webhook permissions before implementation.

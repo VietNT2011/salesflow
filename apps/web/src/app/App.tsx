@@ -13,6 +13,10 @@ import { TaskDashboardPage } from '../features/timeline/TaskDashboardPage.js';
 import { TicketDetailPage } from '../features/tickets/TicketDetailPage.js';
 import { TicketListPage } from '../features/tickets/TicketListPage.js';
 import { AutomationPage } from '../features/automation/AutomationPage.js';
+import { CaptureFormsPage } from '../features/inbox/CaptureFormsPage.js';
+import { InboxPage } from '../features/inbox/InboxPage.js';
+import { PublicFormPage } from '../features/inbox/PublicFormPage.js';
+import { WebchatPage } from '../features/inbox/WebchatPage.js';
 
 function Dashboard() {
   return (
@@ -47,18 +51,11 @@ function Dashboard() {
   );
 }
 
-function FeaturePlaceholder() {
-  return (
-    <section>
-      <p className="eyebrow">Coming in F01–F08</p>
-      <h1>Module đang được chuẩn bị</h1>
-    </section>
-  );
-}
-
 const routes = [
   { path: '/login', element: <AuthPage /> },
   { path: '/accept-invitation', element: <AcceptInvitationPage /> },
+  { path: '/forms/:publicId', element: <PublicFormPage /> },
+  { path: '/chat/:publicId', element: <WebchatPage /> },
   {
     path: '/',
     element: <Layout />,
@@ -70,12 +67,13 @@ const routes = [
       { path: 'customers/:customerId', element: <CustomerProfilePage /> },
       { path: 'orders', element: <OrderListPage /> },
       { path: 'orders/:orderId', element: <OrderDetailPage /> },
-      { path: 'inbox', element: <FeaturePlaceholder /> },
+      { path: 'inbox', element: <InboxPage /> },
       { path: 'tickets', element: <TicketListPage /> },
       { path: 'tickets/:ticketId', element: <TicketDetailPage /> },
       { path: 'tasks', element: <TaskDashboardPage /> },
       { path: 'automations', element: <AutomationPage /> },
       { path: 'settings', element: <MemberSettingsPage /> },
+      { path: 'settings/forms', element: <CaptureFormsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

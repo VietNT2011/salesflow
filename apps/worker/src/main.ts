@@ -6,6 +6,7 @@ import { publishOutboxBatch } from './outbox-publisher.js';
 import { FOUNDATION_QUEUE, QueueRegistry } from './queue-registry.js';
 import { processAutomationEvent, type AutomationEvent } from './automation-processor.js';
 import { sweepAutomationSchedules } from './automation-scheduler.js';
+import { processInboxEvent } from '@salesflow/channel-engine';
 
 const config = parseWorkerConfig(process.env);
 const logger = createLogger(config.LOG_LEVEL);
@@ -21,6 +22,12 @@ registry.worker(FOUNDATION_QUEUE, async (job) => {
     if (metadata?.workspaceId) {
       const payload = { ...data };
       delete payload.__outbox;
+      if (
+        metadata.eventType === 'inbox_event.received' &&
+        typeof payload.inboxEventId === 'string'
+      ) {
+        await processInboxEvent(database, payload.inboxEventId);
+      }
       await processAutomationEvent(database, {
         ...metadata,
         payload,

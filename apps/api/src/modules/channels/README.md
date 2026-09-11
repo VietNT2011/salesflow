@@ -2,6 +2,8 @@
 
 **Feature:** F07-F08
 
-This F00 directory only establishes the module boundary. No business behavior is implemented.
-Future code is split into domain, application, infrastructure and presentation layers. Consumers
-must import the public surface from index.ts; infrastructure details remain private.
+F07 implements website capture forms and hosted webchat. Public requests validate opaque form ids,
+origins, field/consent policy and rate limits, then persist a unique `InboxEvent` plus an
+`inbox_event.received` outbox row in one transaction. The worker resolves identity and creates
+conversation/message/timeline state idempotently after commit. Authenticated routes expose form
+configuration, inbox list/detail, replies and conversation-to-ticket creation; Messenger remains F08.

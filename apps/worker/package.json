@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@salesflow/automation-engine": "workspace:*",
+    "@salesflow/channel-engine": "workspace:*",
     "@salesflow/config": "workspace:*",
     "@salesflow/contracts": "workspace:*",
     "@salesflow/database": "workspace:*",

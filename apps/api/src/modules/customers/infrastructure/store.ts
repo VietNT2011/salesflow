@@ -12,6 +12,7 @@ import {
   auditLog,
   channelIdentities,
   contactPoints,
+  conversations,
   customerAliases,
   customerConsents,
   customerMergeLogs,
@@ -20,6 +21,7 @@ import {
   duplicateReviews,
   interactions,
   memberships,
+  messages,
   orders,
   outboxEvent,
   tags,
@@ -890,6 +892,16 @@ export class CustomerStore {
         .update(channelIdentities)
         .set({ customerId: input.survivorCustomerId })
         .where(eq(channelIdentities.customerId, input.mergedCustomerId));
+      // Inbox threads and their immutable message history follow the survivor so Customer 360
+      // remains complete after identity consolidation.
+      await transaction
+        .update(conversations)
+        .set({ customerId: input.survivorCustomerId })
+        .where(eq(conversations.customerId, input.mergedCustomerId));
+      await transaction
+        .update(messages)
+        .set({ customerId: input.survivorCustomerId })
+        .where(eq(messages.customerId, input.mergedCustomerId));
       await transaction.execute(sql`
         insert into customer_tags (customer_id, tag_id)
         select ${input.survivorCustomerId}, tag_id from customer_tags

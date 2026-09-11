@@ -1,2 +1,3 @@
-// Public module boundary. Feature implementation must export only stable contracts from here.
-export {};
+export type { WorkspaceAccess } from './application/index.js';
+export { ChannelStore } from './infrastructure/index.js';
+export { createChannelPublicRouter, createChannelRouter } from './presentation/index.js';
