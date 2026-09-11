@@ -1,2 +1,2 @@
-// Public module boundary. Feature implementation must export only stable contracts from here.
-export {};
+export { TicketStore } from './infrastructure/index.js';
+export { createTicketRouter } from './presentation/index.js';

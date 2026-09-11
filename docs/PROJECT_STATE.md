@@ -4,8 +4,8 @@ Last updated: 2026-09-11
 
 ## Current milestone
 
-F04 — Interaction Timeline, Task & Manual CSKH is complete. F05–F08 have not been implemented; F09
-remains postponed.
+F05 — Customer Support Ticket & SLA is complete. F06–F08 have not been implemented; F09 remains
+postponed.
 
 ## Delivered
 
@@ -45,6 +45,14 @@ remains postponed.
 - Customer follow-up tasks with optional order/ticket relation, active assignee, due time, optimistic
   completion actor/time, database-time overdue scope and workspace-timezone today scope.
 - React Customer 360 Timeline/Tasks panels and `/tasks` Agent dashboard for today/overdue work.
+- Tenant-scoped ticket queue/detail, readable per-workspace ticket numbers, assignment, reply history,
+  optimistic transitions and Manager-only close/reopen safeguards.
+- Persisted first-response/resolution SLA deadlines with workspace-timezone business hours. Resolution
+  pauses during customer wait and resumes from stored remaining minutes; first-response never pauses.
+- Ticket changes create Customer 360 `TICKET_EVENT`, append-only audit and transactional outbox rows.
+  Repeated SLA sweeps claim `(ticket, kind, deadline)` uniquely before emitting escalation events.
+- React `/tickets` queue/detail, SLA badges/policy settings, assignment/reply/status controls and a
+  populated Customer 360 Tickets tab.
 
 ## Public contracts
 
@@ -69,6 +77,10 @@ remains postponed.
   `/workspaces/:workspaceId`; task list/customer create/complete routes share the same tenant policy.
 - `@salesflow/contracts` exports interaction type/origin/direction, manual log, timeline cursor,
   moderation, task creation/completion and dashboard query schemas.
+- Tickets: stable cursor list/create/detail/update/status/reply under
+  `/workspaces/:workspaceId/tickets`; SLA policy list/upsert under `/sla-policies`.
+- `@salesflow/contracts` exports ticket status/priority, command, cursor filter and business-hours SLA
+  policy schemas.
 
 ## Schema and migrations
 
@@ -81,6 +93,8 @@ remains postponed.
   interactions with arithmetic, external identity and stable timeline indexes.
 - `0004_interaction_tasks.sql`: expands immutable interactions for manual channels/moderation and adds
   customer tasks with assignee/status/due indexes.
+- `0005_tickets_sla.sql`: ticket sequence/policy/ticket/reply/pause/notification tables and ticket
+  relations for Customer 360 interactions/tasks.
 - Unique constraints make normalized account email, workspace slug, active invitation, membership,
   team name and the single workspace Owner deterministic under concurrent requests.
 
@@ -88,12 +102,12 @@ remains postponed.
 
 - `pnpm install --no-frozen-lockfile`: passed; lockfile includes F01 runtime/test dependencies.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`: passed across the monorepo.
-- `pnpm contracts:check`: covered by the final quality gate (7 tests).
-- `pnpm test`: passed (10 files, 28 tests), including note-window/redaction policy and
-  QueryClient-backed React task route smoke tests.
+- `pnpm contracts:check`: covered by the final quality gate (8 tests).
+- `pnpm test`: passed (11 files, 32 tests), including ticket transition/business-calendar rules and
+  QueryClient-backed React ticket route smoke tests.
 - `pnpm check`: passed end-to-end for formatting, lint, typecheck, contract tests, unit tests and builds
   across API, worker, web and shared packages; the Vite production bundle built successfully.
-- `pnpm test:integration`: passed (6 files, 19 tests) with isolated real PostgreSQL/Redis containers.
+- `pnpm test:integration`: passed (7 files, 24 tests) with isolated real PostgreSQL/Redis containers.
   F01 covers register → workspace → invite → accept, refresh reuse revocation, concurrent slug/invite,
   tenant isolation, RBAC, deactivation, team creation and ownership transfer.
   F02 covers cross-tenant contacts, duplicate preview, stale version conflicts, assignment visibility,
@@ -102,7 +116,9 @@ remains postponed.
   concurrent external idempotency and order/history preservation through customer merge.
   F04 covers cursor stability, PII redaction, note edit windows, moderation/audit, overdue/completion and
   interaction/task preservation through customer merge.
-- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. Migration `0004` passed locally and is
+  F05 covers concurrent ticket numbers/replies, stable queue cursor, cross-tenant hiding, resolution and
+  inbound reopen rules, persisted SLA pause/resume and restart-safe breach emission.
+- Local Compose PostgreSQL 17, Redis 7 and Mailpit are healthy. Migration `0005` passed locally and is
   covered from blank by the database integration test.
 
 ## Architecture decisions
@@ -113,6 +129,7 @@ remains postponed.
 - ADR 0004: exact customer identity precedence, advisory-lock concurrency and irreversible audited merge.
 - ADR 0005: immutable order snapshots, server totals, explicit transitions and external idempotency.
 - ADR 0006: immutable interaction corrections/moderation, PII-safe diffs and database-time tasks.
+- ADR 0007: persisted business-time SLA state, row-locked replies/transitions and idempotent escalation.
 
 ## Risks
 
@@ -121,13 +138,13 @@ remains postponed.
 - Cookie security requires HTTPS and `COOKIE_SECURE=true` in production. The symmetric access-token
   secret must be generated and rotated operationally.
 - Outbox retention/cleanup remains intentionally deferred until operational volume is known.
-- The customer merge transaction now re-parents orders, interactions and tasks. Each later module must
+- The customer merge transaction now re-parents orders, tickets, interactions and tasks. Each later module must
   add its new foreign keys to this handler and extend the merge preservation integration test.
 - Address normalization and fuzzy names are deliberately excluded; address is retained as PII text and
   ambiguous exact identifiers require human review.
 
 ## Next dependency
 
-F05 — Customer Support Ticket & SLA. Read CORE, F05, this state file, customer/interaction/task public
-contracts/schema and integration tests. Attach tickets to the existing task/timeline foundations,
-preserve merge behavior and calculate SLA truth from persisted deadlines/pause intervals.
+F06 — Automation & Proactive Care. Read CORE, F06, this state file and ticket/order/customer/task
+outbox contracts. Implement allowlisted versioned rules, idempotent executions, retry/review history,
+dry-run and outbound consent/provider-policy guards without user JavaScript or SQL.

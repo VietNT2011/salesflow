@@ -1,8 +1,8 @@
 # SalesFlow
 
 SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
-F00 foundation through F04 interaction timeline/task slices. Ticket and channel business behavior is
-intentionally not implemented yet.
+F00 foundation through F05 customer-support ticket/SLA slices. Channel business behavior starts in
+F07 and is intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -81,3 +81,12 @@ Architecture decisions and current verification evidence live in `docs/`.
   using database time and the workspace timezone.
 - Notes follow the 15-minute author edit rule; Manager void/redact retains history and requires a reason.
   Viewer responses remove interaction/task PII server-side.
+
+## F05 ticket and SLA flow
+
+- Open `/tickets` to filter the support queue, create a customer ticket and configure priority SLA
+  targets. Deadlines use workspace timezone and persisted business hours.
+- Ticket detail supports assignment, first response, resolution, close/reopen and customer-wait pause.
+  Every change emits a Customer 360 timeline event, audit record and transactional outbox event.
+- Concurrent replies/transitions use row locks plus optimistic versions. Repeated SLA sweeps safely
+  converge on one persisted warning/breach event per ticket deadline.

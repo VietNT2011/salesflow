@@ -1,2 +1,1 @@
-// Reserved for F05 presentation code; intentionally empty during F00.
-export {};
+export { createTicketRouter } from './router.js';

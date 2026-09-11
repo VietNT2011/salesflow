@@ -10,6 +10,8 @@ import { DuplicateReviewPage } from '../features/customers/DuplicateReviewPage.j
 import { OrderDetailPage } from '../features/orders/OrderDetailPage.js';
 import { OrderListPage } from '../features/orders/OrderListPage.js';
 import { TaskDashboardPage } from '../features/timeline/TaskDashboardPage.js';
+import { TicketDetailPage } from '../features/tickets/TicketDetailPage.js';
+import { TicketListPage } from '../features/tickets/TicketListPage.js';
 
 function Dashboard() {
   return (
@@ -68,7 +70,8 @@ const routes = [
       { path: 'orders', element: <OrderListPage /> },
       { path: 'orders/:orderId', element: <OrderDetailPage /> },
       { path: 'inbox', element: <FeaturePlaceholder /> },
-      { path: 'tickets', element: <FeaturePlaceholder /> },
+      { path: 'tickets', element: <TicketListPage /> },
+      { path: 'tickets/:ticketId', element: <TicketDetailPage /> },
       { path: 'tasks', element: <TaskDashboardPage /> },
       { path: 'settings', element: <MemberSettingsPage /> },
       { path: '*', element: <Navigate to="/" replace /> },

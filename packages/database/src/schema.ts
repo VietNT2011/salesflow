@@ -56,6 +56,14 @@ export const orderStatus = pgEnum('order_status', [
   'REFUNDED',
 ]);
 export const taskStatus = pgEnum('task_status', ['OPEN', 'COMPLETED']);
+export const ticketStatus = pgEnum('ticket_status', [
+  'NEW',
+  'OPEN',
+  'PENDING_CUSTOMER',
+  'RESOLVED',
+  'CLOSED',
+]);
+export const ticketPriority = pgEnum('ticket_priority', ['LOW', 'NORMAL', 'HIGH', 'URGENT']);
 
 export const users = pgTable(
   'users',
@@ -461,6 +469,7 @@ export const interactions = pgTable(
       .notNull()
       .references(() => customers.id),
     orderId: uuid('order_id').references(() => orders.id),
+    ticketId: uuid('ticket_id'),
     actorId: uuid('actor_id').references(() => users.id),
     type: text('type').notNull(),
     origin: text('origin').notNull(),
@@ -527,6 +536,139 @@ export const tasks = pgTable(
       table.dueAt,
       table.id,
     ),
+  ],
+);
+
+export const ticketSequences = pgTable('ticket_sequences', {
+  workspaceId: uuid('workspace_id')
+    .primaryKey()
+    .references(() => workspaces.id),
+  lastNumber: integer('last_number').notNull().default(0),
+});
+
+export const slaPolicies = pgTable(
+  'sla_policies',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    priority: ticketPriority('priority').notNull(),
+    channel: text('channel').notNull().default('ANY'),
+    firstResponseMinutes: integer('first_response_minutes').notNull(),
+    resolutionMinutes: integer('resolution_minutes').notNull(),
+    businessHours: jsonb('business_hours').notNull(),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('sla_policies_workspace_priority_channel_unique').on(
+      table.workspaceId,
+      table.priority,
+      table.channel,
+    ),
+  ],
+);
+
+export const tickets = pgTable(
+  'tickets',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ticketNumber: text('ticket_number').notNull(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id),
+    requesterChannelIdentityId: uuid('requester_channel_identity_id').references(
+      () => channelIdentities.id,
+    ),
+    subject: text('subject').notNull(),
+    description: text('description').notNull(),
+    status: ticketStatus('status').notNull().default('NEW'),
+    priority: ticketPriority('priority').notNull().default('NORMAL'),
+    ownerMembershipId: uuid('owner_membership_id').references(() => memberships.id),
+    teamId: uuid('team_id').references(() => teams.id),
+    category: text('category'),
+    sourceChannel: text('source_channel').notNull().default('MANUAL'),
+    sourceConversationId: uuid('source_conversation_id'),
+    firstRespondedAt: timestamp('first_responded_at', { withTimezone: true }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionSummary: text('resolution_summary'),
+    firstResponseDueAt: timestamp('first_response_due_at', { withTimezone: true }).notNull(),
+    resolutionDueAt: timestamp('resolution_due_at', { withTimezone: true }).notNull(),
+    resolutionPausedAt: timestamp('resolution_paused_at', { withTimezone: true }),
+    resolutionRemainingMinutes: integer('resolution_remaining_minutes'),
+    reopenCount: integer('reopen_count').notNull().default(0),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('tickets_workspace_number_unique').on(table.workspaceId, table.ticketNumber),
+    index('tickets_workspace_queue_idx').on(
+      table.workspaceId,
+      table.status,
+      table.priority,
+      table.createdAt,
+      table.id,
+    ),
+    index('tickets_customer_idx').on(table.customerId, table.createdAt, table.id),
+  ],
+);
+
+export const ticketReplies = pgTable(
+  'ticket_replies',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id),
+    actorId: uuid('actor_id').references(() => users.id),
+    direction: text('direction').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('ticket_replies_ticket_idx').on(table.ticketId, table.createdAt, table.id)],
+);
+
+export const ticketSlaPauses = pgTable(
+  'ticket_sla_pauses',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+  },
+  (table) => [index('ticket_sla_pauses_ticket_idx').on(table.ticketId, table.startedAt)],
+);
+
+export const ticketSlaNotifications = pgTable(
+  'ticket_sla_notifications',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id),
+    kind: text('kind').notNull(),
+    deadline: timestamp('deadline', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('ticket_sla_notifications_unique').on(table.ticketId, table.kind, table.deadline),
   ],
 );
 

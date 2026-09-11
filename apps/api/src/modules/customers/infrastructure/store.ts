@@ -26,6 +26,7 @@ import {
   tasks,
   teamMembers,
   teams,
+  tickets,
   workspaceSettings,
   type DatabaseClient,
 } from '@salesflow/database';
@@ -934,6 +935,10 @@ export class CustomerStore {
         .update(tasks)
         .set({ customerId: input.survivorCustomerId })
         .where(eq(tasks.customerId, input.mergedCustomerId));
+      await transaction
+        .update(tickets)
+        .set({ customerId: input.survivorCustomerId })
+        .where(eq(tickets.customerId, input.mergedCustomerId));
       await transaction
         .update(customers)
         .set({ version: sql`${customers.version} + 1`, updatedAt: new Date() })

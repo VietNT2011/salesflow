@@ -424,6 +424,57 @@ label small,
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+.ticket-priority {
+  font:
+    10px ui-monospace,
+    monospace;
+  color: #557245;
+}
+.priority-high,
+.priority-urgent,
+.sla-breached {
+  color: #a5362f;
+}
+.sla-stack {
+  display: grid;
+  gap: 8px;
+  min-width: 260px;
+}
+.sla-stack span {
+  background: white;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.sla-ok {
+  color: #365644;
+}
+.ticket-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
+  gap: 22px;
+  align-items: start;
+  margin-top: 30px;
+}
+.ticket-thread {
+  margin: 16px 0;
+}
+.ticket-reply {
+  border-left: 3px solid #cad0c8;
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+.ticket-reply.outbound {
+  border-left-color: #557245;
+}
+.ticket-reply span,
+.ticket-meta {
+  color: #718078;
+  font-size: 11px;
+}
+.ticket-reply p {
+  margin-bottom: 0;
+  white-space: pre-wrap;
+}
 .invitation-list > form {
   display: flex;
   align-items: center;
@@ -482,6 +533,7 @@ label small,
   .customer-grid,
   .profile-grid,
   .review-grid,
+  .ticket-detail-grid,
   .customer-toolbar {
     grid-template-columns: 1fr;
   }

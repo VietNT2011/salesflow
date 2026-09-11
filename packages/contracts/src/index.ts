@@ -372,6 +372,73 @@ export type TimelineQuery = z.infer<typeof timelineQuerySchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type TaskListQuery = z.infer<typeof taskListQuerySchema>;
 
+export const ticketStatusSchema = z.enum(['NEW', 'OPEN', 'PENDING_CUSTOMER', 'RESOLVED', 'CLOSED']);
+export const ticketPrioritySchema = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
+export const businessHoursSchema = z.object({
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+});
+export const createTicketSchema = z.object({
+  customerId: z.string().uuid(),
+  requesterChannelIdentityId: z.string().uuid().optional(),
+  subject: z.string().trim().min(1).max(300),
+  description: z.string().trim().min(1).max(20_000),
+  priority: ticketPrioritySchema.default('NORMAL'),
+  ownerMembershipId: z.string().uuid().nullable().optional(),
+  teamId: z.string().uuid().nullable().optional(),
+  category: z.string().trim().min(1).max(100).optional(),
+  sourceChannel: z.string().trim().min(1).max(50).default('MANUAL'),
+  sourceConversationId: z.string().uuid().optional(),
+});
+export const updateTicketSchema = z
+  .object({
+    version: z.number().int().positive(),
+    priority: ticketPrioritySchema.optional(),
+    ownerMembershipId: z.string().uuid().nullable().optional(),
+    teamId: z.string().uuid().nullable().optional(),
+    category: z.string().trim().min(1).max(100).nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).some((key) => key !== 'version'), {
+    message: 'At least one ticket change is required',
+  });
+export const transitionTicketSchema = z.object({
+  version: z.number().int().positive(),
+  status: ticketStatusSchema,
+  resolutionSummary: z.string().trim().min(3).max(5_000).optional(),
+  reason: z.string().trim().min(3).max(500).optional(),
+});
+export const replyTicketSchema = z.object({
+  version: z.number().int().positive(),
+  direction: interactionDirectionSchema,
+  content: z.string().trim().min(1).max(20_000),
+});
+export const ticketListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().max(500).optional(),
+  status: ticketStatusSchema.optional(),
+  priority: ticketPrioritySchema.optional(),
+  customerId: z.string().uuid().optional(),
+});
+export const upsertSlaPolicySchema = z.object({
+  priority: ticketPrioritySchema,
+  channel: z.string().trim().min(1).max(50).default('ANY'),
+  firstResponseMinutes: z.number().int().min(1).max(43_200),
+  resolutionMinutes: z.number().int().min(1).max(259_200),
+  businessHours: businessHoursSchema,
+  version: z.number().int().positive().optional(),
+});
+
+export type TicketStatus = z.infer<typeof ticketStatusSchema>;
+export type TicketPriority = z.infer<typeof ticketPrioritySchema>;
+export type BusinessHours = z.infer<typeof businessHoursSchema>;
+export type CreateTicketInput = z.infer<typeof createTicketSchema>;
+export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
+export type TransitionTicketInput = z.infer<typeof transitionTicketSchema>;
+export type ReplyTicketInput = z.infer<typeof replyTicketSchema>;
+export type TicketListQuery = z.infer<typeof ticketListQuerySchema>;
+export type UpsertSlaPolicyInput = z.infer<typeof upsertSlaPolicySchema>;
+
 export const openApiDocument = {
   openapi: '3.1.0',
   info: { title: 'SalesFlow API', version: '0.0.0' },
@@ -453,6 +520,24 @@ export const openApiDocument = {
     },
     '/api/v1/workspaces/{workspaceId}/tasks/{taskId}/complete': {
       post: { summary: 'Optimistically complete a task' },
+    },
+    '/api/v1/workspaces/{workspaceId}/tickets': {
+      get: { summary: 'List the visible support ticket queue' },
+      post: { summary: 'Create a ticket with persisted SLA deadlines' },
+    },
+    '/api/v1/workspaces/{workspaceId}/tickets/{ticketId}': {
+      get: { summary: 'Read ticket detail and reply history' },
+      patch: { summary: 'Assign or update a ticket optimistically' },
+    },
+    '/api/v1/workspaces/{workspaceId}/tickets/{ticketId}/status': {
+      post: { summary: 'Transition ticket and pause/resume SLA' },
+    },
+    '/api/v1/workspaces/{workspaceId}/tickets/{ticketId}/replies': {
+      post: { summary: 'Append a ticket reply and record first response' },
+    },
+    '/api/v1/workspaces/{workspaceId}/sla-policies': {
+      get: { summary: 'List ticket SLA policies' },
+      put: { summary: 'Create or optimistically update an SLA policy' },
     },
   },
 } as const;

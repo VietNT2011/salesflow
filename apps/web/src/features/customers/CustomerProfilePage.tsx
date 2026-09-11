@@ -39,6 +39,15 @@ interface CustomerOrder {
   placedAt: string;
 }
 
+interface CustomerTicket {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  status: string;
+  priority: string;
+  resolutionDueAt: string;
+}
+
 const tabs = ['Overview', 'Timeline', 'Orders', 'Tickets', 'Conversations', 'Tasks'];
 
 export function CustomerProfilePage() {
@@ -64,6 +73,14 @@ export function CustomerProfilePage() {
     queryFn: () =>
       apiRequest<{ data: CustomerOrder[] }>(
         `/workspaces/${workspace?.id}/orders?customerId=${customerId}&limit=100`,
+      ),
+  });
+  const customerTickets = useQuery({
+    queryKey: ['tickets', workspace?.id, customerId],
+    enabled: Boolean(workspace && customerId && activeTab === 'Tickets'),
+    queryFn: () =>
+      apiRequest<{ data: CustomerTicket[] }>(
+        `/workspaces/${workspace?.id}/tickets?customerId=${customerId}&limit=100`,
       ),
   });
   const mayEdit = workspace?.role !== 'VIEWER';
@@ -282,6 +299,26 @@ export function CustomerProfilePage() {
         </article>
       ) : activeTab === 'Timeline' ? (
         <TimelinePanel workspaceId={workspace.id} customerId={profile.id} mayEdit={mayEdit} />
+      ) : activeTab === 'Tickets' ? (
+        <article className="empty-tab">
+          <p className="eyebrow">Tickets</p>
+          <div className="contact-list">
+            {customerTickets.data?.data.map((ticket) => (
+              <Link key={ticket.id} to={`/tickets/${ticket.id}`}>
+                <strong>
+                  {ticket.ticketNumber} · {ticket.subject}
+                </strong>
+                <span>
+                  {ticket.priority} · {ticket.status}
+                </span>
+                <small>SLA {new Date(ticket.resolutionDueAt).toLocaleString('vi-VN')}</small>
+              </Link>
+            ))}
+            {!customerTickets.isLoading && !customerTickets.data?.data.length && (
+              <p>Khách hàng chưa có ticket.</p>
+            )}
+          </div>
+        </article>
       ) : activeTab === 'Tasks' ? (
         <TaskPanel workspaceId={workspace.id} customerId={profile.id} mayEdit={mayEdit} />
       ) : (

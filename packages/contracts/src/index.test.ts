@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createOrderSchema,
   createManualInteractionSchema,
+  createTicketSchema,
   createInvitationSchema,
   createCustomerSchema,
   customerListQuerySchema,
@@ -79,5 +80,15 @@ describe('foundation contracts', () => {
         callOutcome: 'CONNECTED',
       }).success,
     ).toBe(true);
+  });
+
+  it('validates ticket content and defaults priority/source', () => {
+    const result = createTicketSchema.parse({
+      customerId: '33587f10-8a5e-4f71-87c2-acf7c87a7a88',
+      subject: 'Need help',
+      description: 'Checkout is unavailable',
+    });
+    expect(result).toMatchObject({ priority: 'NORMAL', sourceChannel: 'MANUAL' });
+    expect(createTicketSchema.safeParse({ customerId: result.customerId }).success).toBe(false);
   });
 });
