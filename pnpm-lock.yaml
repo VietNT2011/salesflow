@@ -59,6 +59,9 @@ importers:
       '@salesflow/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@salesflow/facebook-messenger':
+        specifier: workspace:*
+        version: link:../../packages/facebook-messenger
       '@salesflow/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -234,6 +237,12 @@ importers:
       '@salesflow/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+
+  packages/facebook-messenger:
+    dependencies:
+      '@salesflow/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/observability:
     dependencies:

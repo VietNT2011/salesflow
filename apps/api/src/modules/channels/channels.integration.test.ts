@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { createHmac } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import request, { type Response } from 'supertest';
@@ -149,5 +150,99 @@ describe('F07 website inbox', () => {
         await database.db.select().from(messages).where(eq(messages.workspaceId, workspaceId))
       ).filter((message) => message.direction === 'OUTBOUND'),
     ).toHaveLength(1);
+  });
+
+  it('verifies Messenger webhook signatures, hides credentials and normalizes a Page message', async () => {
+    const registered = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'messenger-owner@example.com',
+        password: 'correct-horse-battery-staple',
+        displayName: 'Messenger Owner',
+      })
+      .expect(201);
+    const cookie = cookieHeader(registered);
+    const workspace = await request(app)
+      .post('/api/v1/workspaces')
+      .set('Cookie', cookie)
+      .send({ name: 'Messenger Workspace', slug: 'messenger-workspace' })
+      .expect(201);
+    const workspaceId = String(workspace.body.data.id);
+    const created = await request(app)
+      .post(`/api/v1/workspaces/${workspaceId}/channels/facebook-messenger`)
+      .set('Cookie', cookie)
+      .send({
+        name: 'Support Page',
+        mode: 'BRING_YOUR_OWN_APP',
+        appId: 'app-1',
+        appSecret: 'app-secret',
+        pageId: 'page-1',
+        pageName: 'Support Page',
+        pageAccessToken: 'page-token',
+        verifyToken: 'verify-token-123456',
+        graphApiVersion: 'v23.0',
+      })
+      .expect(201);
+    expect(created.body.data).toMatchObject({
+      provider: 'FACEBOOK_MESSENGER',
+      hasCredentials: true,
+    });
+    expect(JSON.stringify(created.body.data)).not.toContain('app-secret');
+    const connectionId = String(created.body.data.id);
+    const oauth = await request(app)
+      .get(
+        `/api/v1/workspaces/${workspaceId}/channels/facebook-messenger/${connectionId}/oauth/start`,
+      )
+      .set('Cookie', cookie)
+      .query({ redirectUri: 'https://salesflow.example.com/oauth/facebook' })
+      .expect(200);
+    expect(oauth.body.data.authorizationUrl).toContain('code_challenge=');
+    expect(oauth.body.data.authorizationUrl).not.toContain('app-secret');
+    await request(app)
+      .get(`/api/v1/webhooks/facebook/messenger/${workspaceId}/${connectionId}`)
+      .query({
+        'hub.mode': 'subscribe',
+        'hub.verify_token': 'verify-token-123456',
+        'hub.challenge': 'challenge-123',
+      })
+      .expect(200, 'challenge-123');
+    const payload = JSON.stringify({
+      object: 'page',
+      entry: [
+        {
+          id: 'page-1',
+          time: 1_700_000_000_000,
+          messaging: [
+            {
+              sender: { id: 'psid-1' },
+              recipient: { id: 'page-1' },
+              timestamp: 1_700_000_000_000,
+              message: { mid: 'mid-facebook-1', text: 'Messenger hello' },
+            },
+          ],
+        },
+      ],
+    });
+    const signature = `sha256=${createHmac('sha256', 'app-secret').update(payload).digest('hex')}`;
+    await request(app)
+      .post(`/api/v1/webhooks/facebook/messenger/${workspaceId}/${connectionId}`)
+      .set('Content-Type', 'application/json')
+      .set('X-Hub-Signature-256', signature)
+      .send(payload)
+      .expect(202);
+    const [event] = await database.db
+      .select()
+      .from(inboxEvents)
+      .where(eq(inboxEvents.workspaceId, workspaceId));
+    if (!event) throw new Error('Expected Facebook inbox event');
+    await processInboxEvent(database, event.id);
+    const facebookMessages = await database.db
+      .select()
+      .from(messages)
+      .where(eq(messages.workspaceId, workspaceId));
+    expect(facebookMessages[0]).toMatchObject({
+      providerMessageId: 'mid-facebook-1',
+      body: 'Messenger hello',
+    });
   });
 });

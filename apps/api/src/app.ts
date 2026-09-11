@@ -37,6 +37,11 @@ export function createApp(options: AppOptions): Express {
       origin: request.path.startsWith('/api/v1/public/') ? true : options.webOrigin,
     })(request, response, next);
   });
+  // Preserve the exact bytes for Meta's HMAC signature check before express.json parses them.
+  app.use(
+    '/api/v1/webhooks/facebook/messenger',
+    express.raw({ type: 'application/json', limit: '1mb' }),
+  );
   app.use(express.json({ limit: '1mb' }));
   app.use(requestContext);
   app.use(pinoHttp({ logger, genReqId: (request) => request.requestId }));

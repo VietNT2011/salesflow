@@ -19,7 +19,13 @@ const database = createDatabaseClient(config.DATABASE_URL);
 const redis = new Redis(config.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
 const identityStore = new IdentityStore(database);
 const customerStore = new CustomerStore(database, identityStore);
-const channelStore = new ChannelStore(database, identityStore);
+// Reuse the validated access-token secret as the local fallback so integration
+// environments cannot silently fall back to a hard-coded credential key.
+const channelStore = new ChannelStore(
+  database,
+  identityStore,
+  process.env.CHANNEL_ENCRYPTION_KEY ?? config.ACCESS_TOKEN_SECRET,
+);
 const ticketStore = new TicketStore(database, identityStore, customerStore);
 
 const app = createApp({

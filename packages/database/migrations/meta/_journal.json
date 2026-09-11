@@ -57,6 +57,13 @@
       "when": 1789354800000,
       "tag": "0007_inbox_website",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789441200000,
+      "tag": "0008_facebook_messenger",
+      "breakpoints": true
     }
   ]
 }

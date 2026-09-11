@@ -2,12 +2,14 @@ import { Router, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
   conversationListSchema,
+  createFacebookConnectionSchema,
   createConversationTicketSchema,
   createCaptureFormSchema,
   publicFormSubmissionSchema,
   replyConversationSchema,
   updateCaptureFormSchema,
   updateConversationSchema,
+  updateFacebookConnectionSchema,
   webchatInboundSchema,
 } from '@salesflow/contracts';
 import { AppError } from '../../../errors.js';
@@ -42,6 +44,54 @@ export function createChannelPublicRouter(store: ChannelStore): Router {
     limit: 30,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
+  });
+  router.get(
+    '/webhooks/facebook/messenger/:workspaceId/:connectionId',
+    async (request, response, next) => {
+      try {
+        const challenge = await store.verifyFacebookWebhook(
+          String(request.params.workspaceId),
+          String(request.params.connectionId),
+          String(request.query['hub.verify_token'] ?? ''),
+          String(request.query['hub.challenge'] ?? ''),
+        );
+        response.type('text/plain').send(challenge);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.post(
+    '/webhooks/facebook/messenger/:workspaceId/:connectionId',
+    async (request, response, next) => {
+      try {
+        const rawBody = Buffer.isBuffer(request.body)
+          ? request.body
+          : Buffer.from(JSON.stringify(request.body));
+        const data = await store.acceptFacebookWebhook(
+          String(request.params.workspaceId),
+          String(request.params.connectionId),
+          rawBody,
+          request.header('x-hub-signature-256'),
+        );
+        response.status(202).json({ data, meta: { requestId: request.requestId } });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.get('/channels/facebook-messenger/oauth/callback', async (request, response, next) => {
+    try {
+      const state = String(request.query.state ?? '');
+      const code = String(request.query.code ?? '');
+      if (!state || !code) {
+        throw new AppError('OAUTH_CALLBACK_INVALID', 'OAuth callback parameters are invalid', 422);
+      }
+      const data = await store.completeFacebookOAuth(state, code);
+      response.json({ data, meta: { requestId: request.requestId } });
+    } catch (error) {
+      next(error);
+    }
   });
   router.get('/public/forms/:publicId', limiter, async (request, response, next) => {
     try {
@@ -90,6 +140,72 @@ export function createChannelPublicRouter(store: ChannelStore): Router {
 
 export function createChannelRouter(store: ChannelStore, tickets?: TicketCreator): Router {
   const router = Router();
+  router.get(
+    '/workspaces/:workspaceId/channels/facebook-messenger',
+    async (request, response, next) => {
+      try {
+        const data = await store.listFacebookConnections(
+          userId(response),
+          String(request.params.workspaceId),
+        );
+        response.json({ data, meta: { requestId: request.requestId } });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.post(
+    '/workspaces/:workspaceId/channels/facebook-messenger',
+    validateBody(createFacebookConnectionSchema),
+    async (request, response, next) => {
+      try {
+        const data = await store.createFacebookConnection(
+          userId(response),
+          String(request.params.workspaceId),
+          createFacebookConnectionSchema.parse(request.body),
+        );
+        response.status(201).json({ data, meta: { requestId: request.requestId } });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.patch(
+    '/workspaces/:workspaceId/channels/facebook-messenger/:connectionId',
+    validateBody(updateFacebookConnectionSchema),
+    async (request, response, next) => {
+      try {
+        const data = await store.updateFacebookConnection(
+          userId(response),
+          String(request.params.workspaceId),
+          String(request.params.connectionId),
+          updateFacebookConnectionSchema.parse(request.body),
+        );
+        response.json({ data, meta: { requestId: request.requestId } });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  router.get(
+    '/workspaces/:workspaceId/channels/facebook-messenger/:connectionId/oauth/start',
+    async (request, response, next) => {
+      try {
+        const redirectUri = String(request.query.redirectUri ?? '');
+        if (!redirectUri.startsWith('https://'))
+          throw new AppError('INVALID_REDIRECT_URI', 'OAuth redirectUri must use HTTPS', 422);
+        const data = await store.startFacebookOAuth(
+          userId(response),
+          String(request.params.workspaceId),
+          String(request.params.connectionId),
+          redirectUri,
+        );
+        response.json({ data, meta: { requestId: request.requestId } });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
   router.get('/workspaces/:workspaceId/capture-forms', async (request, response, next) => {
     try {
       const data = await store.listForms(userId(response), String(request.params.workspaceId));

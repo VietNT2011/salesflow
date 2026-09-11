@@ -5,6 +5,7 @@ import { publicFormSubmissionSchema, webchatInboundSchema } from '@salesflow/con
 import {
   auditLog,
   captureForms,
+  channelConnections,
   channelIdentities,
   contactPoints,
   conversationParticipants,
@@ -212,18 +213,63 @@ export async function processInboxEvent(
         .update(inboxEvents)
         .set({ status: 'PROCESSING', attempts: event.attempts + 1 })
         .where(eq(inboxEvents.id, event.id));
-      const [form] = await transaction
-        .select()
-        .from(captureForms)
-        .where(
-          and(
-            eq(captureForms.id, event.connectionKey),
-            eq(captureForms.workspaceId, event.workspaceId),
-          ),
-        )
-        .limit(1);
-      if (!form) throw new Error('CAPTURE_FORM_NOT_FOUND');
-      const isChat = event.eventType === 'WEBCHAT_MESSAGE';
+      const isFacebook =
+        event.eventType === 'FACEBOOK_MESSAGE' || event.eventType === 'FACEBOOK_STATUS';
+      const [form] = isFacebook
+        ? []
+        : await transaction
+            .select()
+            .from(captureForms)
+            .where(
+              and(
+                eq(captureForms.id, event.connectionKey),
+                eq(captureForms.workspaceId, event.workspaceId),
+              ),
+            )
+            .limit(1);
+      const [connection] = isFacebook
+        ? await transaction
+            .select()
+            .from(channelConnections)
+            .where(
+              and(
+                eq(channelConnections.id, event.connectionKey),
+                eq(channelConnections.workspaceId, event.workspaceId),
+              ),
+            )
+            .limit(1)
+        : [];
+      if (!form && !connection) {
+        throw new Error(isFacebook ? 'CHANNEL_CONNECTION_NOT_FOUND' : 'CAPTURE_FORM_NOT_FOUND');
+      }
+      const sourceConnectionId = isFacebook ? connection?.id : form?.id;
+      if (!sourceConnectionId) {
+        throw new Error(isFacebook ? 'CHANNEL_CONNECTION_NOT_FOUND' : 'CAPTURE_FORM_NOT_FOUND');
+      }
+      if (event.eventType === 'FACEBOOK_STATUS') {
+        const statusPayload = event.payload as { providerMessageId?: unknown; status?: unknown };
+        if (
+          typeof statusPayload.providerMessageId === 'string' &&
+          statusPayload.providerMessageId
+        ) {
+          await transaction
+            .update(messages)
+            .set({ status: statusPayload.status === 'READ' ? 'READ' : 'DELIVERED' })
+            .where(
+              and(
+                eq(messages.workspaceId, event.workspaceId),
+                eq(messages.providerMessageId, statusPayload.providerMessageId),
+              ),
+            );
+        }
+        await transaction
+          .update(inboxEvents)
+          .set({ status: 'PROCESSED', processedAt: new Date(), errorCode: null })
+          .where(eq(inboxEvents.id, event.id));
+        return;
+      }
+      const isChat =
+        event.eventType === 'WEBCHAT_MESSAGE' || event.eventType === 'FACEBOOK_MESSAGE';
       const input = isChat
         ? webchatInboundSchema.parse(event.payload)
         : publicFormSubmissionSchema.parse(event.payload);
@@ -232,13 +278,13 @@ export async function processInboxEvent(
         : publicFormSubmissionSchema.parse(event.payload).eventId;
       const identity = await resolveIdentity(transaction, {
         workspaceId: event.workspaceId,
-        provider: isChat ? 'WEBCHAT' : 'WEBSITE',
-        connectionKey: form.id,
+        provider: isFacebook ? 'FACEBOOK_MESSENGER' : isChat ? 'WEBCHAT' : 'WEBSITE',
+        connectionKey: sourceConnectionId,
         externalUserId,
         name: input.name,
         email: input.email,
         phone: input.phone,
-        source: form.source,
+        source: isFacebook ? 'FACEBOOK_MESSENGER' : (form?.source ?? 'WEBSITE'),
       });
       const externalThreadId = isChat
         ? (webchatInboundSchema.parse(event.payload).conversationId ?? externalUserId)
@@ -249,7 +295,10 @@ export async function processInboxEvent(
         .where(
           and(
             eq(conversations.workspaceId, event.workspaceId),
-            eq(conversations.provider, isChat ? 'WEBCHAT' : 'WEBSITE'),
+            eq(
+              conversations.provider,
+              isFacebook ? 'FACEBOOK_MESSENGER' : isChat ? 'WEBCHAT' : 'WEBSITE',
+            ),
             eq(conversations.externalThreadId, externalThreadId),
           ),
         )
@@ -261,9 +310,10 @@ export async function processInboxEvent(
           .values({
             id: conversationId,
             workspaceId: event.workspaceId,
+            connectionId: isFacebook ? sourceConnectionId : null,
             customerId: identity.customerId,
             channelIdentityId: identity.identityId,
-            provider: isChat ? 'WEBCHAT' : 'WEBSITE',
+            provider: isFacebook ? 'FACEBOOK_MESSENGER' : isChat ? 'WEBCHAT' : 'WEBSITE',
             externalThreadId,
           })
           .returning();
@@ -317,7 +367,10 @@ export async function processInboxEvent(
             externalId: `inbox:${event.id}`,
             summary: body,
             occurredAt: sentAt,
-            metadata: { conversationId: conversation.id, provider: isChat ? 'WEBCHAT' : 'WEBSITE' },
+            metadata: {
+              conversationId: conversation.id,
+              provider: isFacebook ? 'FACEBOOK_MESSENGER' : isChat ? 'WEBCHAT' : 'WEBSITE',
+            },
           })
           .onConflictDoNothing();
       }

@@ -1,7 +1,8 @@
 # SalesFlow
 
 SalesFlow is an omnichannel customer-service CRM for SMEs. The repository currently contains the
-F00 foundation through F07 website/webchat inbox slices. Facebook Messenger remains the F08 adapter.
+F00 foundation through F08 website/webchat and Facebook Messenger inbox slices. F09 extensions remain
+postponed.
 
 ## Prerequisites
 
@@ -110,3 +111,15 @@ Architecture decisions and current verification evidence live in `docs/`.
   message to Customer 360, conversation and timeline. Conflicting identifiers remain reviewable.
 - `/inbox` supports conversation visibility, Customer 360 links, replies and optimistic conflicts;
   conversations can create tickets after identity resolution.
+
+## F08 Facebook Messenger flow
+
+- Owners/Admins create a Messenger connection with encrypted write-only credentials, a pinned Graph API
+  version and the selected Page id. The API never returns app secrets or Page tokens.
+- OAuth start creates short-lived single-use state and PKCE values. The public callback exchanges the code
+  only after the state is consumed; failed exchanges move the connection to `NEEDS_REAUTH`.
+- Meta webhook GET verifies `hub.verify_token`; POST verifies `X-Hub-Signature-256`, persists a unique
+  inbox event and acknowledges with `202` before worker normalization.
+- Normalized Messenger messages, delivery and read events share the existing Inbox/Customer 360 timeline;
+  duplicate provider ids are safe across retries. Production activation still requires revalidating Meta's
+  current permissions and messaging policies.

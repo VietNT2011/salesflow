@@ -4,8 +4,7 @@ Last updated: 2026-09-11
 
 ## Current milestone
 
-F07 — Omnichannel Inbox Foundation & Website is complete. F08 Facebook Messenger is next; F09 remains
-postponed.
+F08 — Facebook Messenger connector is complete. F09 remains postponed.
 
 ## Delivered
 
@@ -69,6 +68,12 @@ postponed.
   retries; ambiguous identity preserves the message and routes the event to review.
 - Authenticated split-view `/inbox`, form settings, public form and webchat pages. Conversation
   assignment/status/reply commands use optimistic version conflict handling and tenant visibility.
+- Facebook Messenger connection lifecycle with tenant-scoped encrypted credentials, write-only secret
+  responses, pinned Graph API version and Owner/Admin policy.
+- Single-use OAuth state/PKCE persistence, public callback, token exchange handoff and `NEEDS_REAUTH`
+  failure state; no provider credentials are logged or returned.
+- Verified webhook challenge and HMAC signature routes. Message, delivery and read fixtures persist as
+  unique `InboxEvent` records and flow through the existing transactional outbox/worker pipeline.
 
 ## Public contracts
 
@@ -103,6 +108,10 @@ postponed.
   model, deterministic evaluation, event mapping, retry backoff and outbound URL guard.
 - Channels: form CRUD/public form-webchat ingest endpoints, conversation list/detail/update/reply and
   conversation-to-ticket command under `/workspaces/:workspaceId` and `/public`.
+- Facebook Messenger: connection CRUD, OAuth start/callback and public webhook routes under
+  `/workspaces/:workspaceId/channels/facebook-messenger` and
+  `/webhooks/facebook/messenger/:workspaceId/:connectionId`.
+- `@salesflow/contracts` exports Facebook connection mode/create/update schemas and OpenAPI route entries.
 
 ## Schema and migrations
 
@@ -121,6 +130,8 @@ postponed.
   scheduler claims.
 - `0007_inbox_website.sql`: channel connections, capture forms, inbox events, conversations,
   participants and immutable messages with provider/thread/event uniqueness indexes.
+- `0008_facebook_messenger.sql`: encrypted connection credential metadata, Graph API version and
+  single-use OAuth state/PKCE storage.
 - Unique constraints make normalized account email, workspace slug, active invitation, membership,
   team name and the single workspace Owner deterministic under concurrent requests.
 
@@ -129,11 +140,12 @@ postponed.
 - `pnpm install --no-frozen-lockfile`: passed; lockfile includes F01 runtime/test dependencies.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`: passed across the monorepo.
 - `pnpm contracts:check`: covered by the final quality gate (9 tests).
-- `pnpm test`: passed (12 files, 36 tests), including closed-registry automation evaluation,
+- `pnpm test`: passed (13 files, 40 tests), including Messenger HMAC normalization, closed-registry automation evaluation,
   retry/SSRF guards and QueryClient-backed React automation route smoke tests.
-- `pnpm check`: passed end-to-end for formatting, lint, typecheck, contract tests, unit tests and builds
+- `pnpm check` components passed for formatting, lint, typecheck, contract tests, unit tests and builds
   across API, worker, web and shared packages; the Vite production bundle built successfully.
-- `pnpm test:integration`: passed (9 files, 31 tests) with isolated real PostgreSQL/Redis containers.
+- `pnpm test:integration`: passed (10 files, 33 tests) with isolated real PostgreSQL/Redis containers.
+  F08 adds Messenger connection/OAuth-start, webhook signature and idempotent inbox normalization coverage.
   F01 covers register → workspace → invite → accept, refresh reuse revocation, concurrent slug/invite,
   tenant isolation, RBAC, deactivation, team creation and ownership transfer.
   F02 covers cross-tenant contacts, duplicate preview, stale version conflicts, assignment visibility,
@@ -161,6 +173,8 @@ postponed.
 - ADR 0007: persisted business-time SLA state, row-locked replies/transitions and idempotent escalation.
 - ADR 0008: declarative automation registry, durable execution identity, chain cap and adapter handoff.
 - ADR 0009: persist website/webchat inbox events before asynchronous identity normalization.
+- ADR 0010: Facebook Messenger anti-corruption adapter, encrypted credentials, OAuth state/PKCE and
+  verified webhook ingestion.
 
 ## Risks
 
@@ -179,5 +193,5 @@ postponed.
 
 ## Next dependency
 
-F08 — Facebook Messenger connector. Use the existing channel adapter, inbox event and identity
-contracts; verify current Meta OAuth/webhook permissions before implementation.
+F09 is postponed by product decision. Any future Zalo OA, telephony, CSV import or reporting work must
+start with a separate product review and plan; do not extend this F08 slice implicitly.

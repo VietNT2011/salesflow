@@ -579,8 +579,8 @@ export const publicFormSubmissionSchema = z.object({
 });
 export const webchatInboundSchema = z.object({
   eventId: z.string().uuid(),
-  visitorId: z.string().uuid(),
-  conversationId: z.string().uuid().optional(),
+  visitorId: z.string().trim().min(1).max(255),
+  conversationId: z.string().trim().min(1).max(255).optional(),
   message: z.string().trim().min(1).max(10_000),
   name: z.string().trim().min(1).max(200).optional(),
   email: z.string().trim().email().max(320).optional(),
@@ -615,6 +615,40 @@ export type UpdateCaptureFormInput = z.infer<typeof updateCaptureFormSchema>;
 export type PublicFormSubmissionInput = z.infer<typeof publicFormSubmissionSchema>;
 export type WebchatInboundInput = z.infer<typeof webchatInboundSchema>;
 export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
+export const facebookConnectionModeSchema = z.enum(['PLATFORM_MANAGED_APP', 'BRING_YOUR_OWN_APP']);
+export const createFacebookConnectionSchema = z
+  .object({
+    name: z.string().trim().min(1).max(160),
+    mode: facebookConnectionModeSchema,
+    appId: z.string().trim().min(1).max(200).optional(),
+    appSecret: z.string().trim().min(1).max(500).optional(),
+    pageId: z.string().trim().min(1).max(200),
+    pageName: z.string().trim().min(1).max(200).optional(),
+    pageAccessToken: z.string().trim().min(1).max(2_000),
+    verifyToken: z.string().trim().min(16).max(500),
+    graphApiVersion: z
+      .string()
+      .regex(/^v\d+\.\d+$/)
+      .default('v23.0'),
+  })
+  .superRefine((value, context) => {
+    if (value.mode === 'BRING_YOUR_OWN_APP' && (!value.appId || !value.appSecret)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['appId'],
+        message: 'BYO app requires appId and appSecret',
+      });
+    }
+  });
+export const updateFacebookConnectionSchema = z.object({
+  version: z.number().int().positive(),
+  status: z
+    .enum(['DISCONNECTED', 'CONNECTING', 'ACTIVE', 'NEEDS_REAUTH', 'ERROR', 'DISABLED'])
+    .optional(),
+  pageName: z.string().trim().min(1).max(200).optional(),
+});
+export type CreateFacebookConnectionInput = z.infer<typeof createFacebookConnectionSchema>;
+export type UpdateFacebookConnectionInput = z.infer<typeof updateFacebookConnectionSchema>;
 
 export const openApiDocument = {
   openapi: '3.1.0',
@@ -757,6 +791,23 @@ export const openApiDocument = {
     },
     '/api/v1/workspaces/{workspaceId}/conversations/{conversationId}/replies': {
       post: { summary: 'Append an optimistic outbound reply' },
+    },
+    '/api/v1/workspaces/{workspaceId}/channels/facebook-messenger': {
+      get: { summary: 'List safe Facebook Messenger connection metadata' },
+      post: { summary: 'Create an encrypted Facebook Messenger connection' },
+    },
+    '/api/v1/workspaces/{workspaceId}/channels/facebook-messenger/{connectionId}': {
+      patch: { summary: 'Update Facebook Messenger connection lifecycle' },
+    },
+    '/api/v1/workspaces/{workspaceId}/channels/facebook-messenger/{connectionId}/oauth/start': {
+      get: { summary: 'Create a short-lived OAuth state and authorization URL' },
+    },
+    '/api/v1/channels/facebook-messenger/oauth/callback': {
+      get: { summary: 'Consume a one-time Facebook OAuth callback state' },
+    },
+    '/api/v1/webhooks/facebook/messenger/{workspaceId}/{connectionId}': {
+      get: { summary: 'Verify a Facebook webhook challenge' },
+      post: { summary: 'Verify and durably ingest Facebook webhook events' },
     },
   },
 } as const;

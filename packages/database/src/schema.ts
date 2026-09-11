@@ -874,12 +874,42 @@ export const channelConnections = pgTable(
     name: text('name').notNull(),
     status: text('status').notNull().default('ACTIVE'),
     config: jsonb('config').notNull().default({}),
+    encryptedCredentials: text('encrypted_credentials'),
+    credentialsKeyVersion: integer('credentials_key_version').notNull().default(1),
+    externalAccountId: text('external_account_id'),
+    apiVersion: text('api_version').notNull().default('v23.0'),
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('channel_connections_workspace_provider_idx').on(table.workspaceId, table.provider),
+  ],
+);
+
+export const channelOauthStates = pgTable(
+  'channel_oauth_states',
+  {
+    id: uuid('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    connectionId: uuid('connection_id')
+      .notNull()
+      .references(() => channelConnections.id),
+    actorId: uuid('actor_id')
+      .notNull()
+      .references(() => users.id),
+    stateHash: text('state_hash').notNull(),
+    redirectUri: text('redirect_uri').notNull(),
+    encryptedCodeVerifier: text('encrypted_code_verifier'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('channel_oauth_states_state_hash_unique').on(table.stateHash),
+    index('channel_oauth_states_expiry_idx').on(table.expiresAt, table.id),
   ],
 );
 
